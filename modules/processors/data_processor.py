@@ -539,8 +539,14 @@ class DataProcessor:
                     }
                     suggestions.append(suggestion)
 
-            # ENHANCED: Use AGENTS.md confidence evaluation
-            should_use, confidence_level = should_use_extracted_product(search_results)
+            # ENHANCED: Use AGENTS.md confidence evaluation with proper confidence calculation
+            calculated_confidence = self._calculate_confidence_from_search_results(search_results)
+            
+            # Use the calculated confidence for evaluation
+            evaluation_input = {"confidence": calculated_confidence}
+            should_use, confidence_level = should_use_extracted_product(evaluation_input)
+            
+
 
             return {
                 "search_attempted": True,
@@ -549,7 +555,7 @@ class DataProcessor:
                 "has_suggestions": has_suggestions,
                 "suggestions": suggestions,
                 "best_match": search_results.get("best_match"),
-                "confidence": self._calculate_confidence_from_search_results(search_results),
+                "confidence": calculated_confidence,
                 "confidence_level": confidence_level,
                 "should_use_for_pricing": should_use
                 and confidence_level in ["high_confidence", "medium_confidence"],
@@ -594,12 +600,12 @@ class DataProcessor:
             
         relevance_score = best_match.get("relevance_score", 0.0)
         
-        if relevance_score >= 0.7:
-            confidence = min(0.95, relevance_score + 0.2)  # High confidence
+        if relevance_score >= 0.6:
+            confidence = min(0.95, relevance_score + 0.1)
         elif relevance_score >= 0.5:
-            confidence = relevance_score + 0.1  # Medium confidence  
+            confidence = relevance_score + 0.05
         else:
-            confidence = relevance_score  # Low confidence
+            confidence = max(0.4, relevance_score)
             
         return confidence
 
