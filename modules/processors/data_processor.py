@@ -1148,11 +1148,15 @@ class DataProcessor:
                         "prompt_strategy", "general_helpful"
                     )
 
+                    logger.info(f"Selecting generation method for strategy: {prompt_strategy}")
+                    
                     if prompt_strategy in [
                         "warranty_focused",
                         "pricing_focused",
                         "stock_focused",
                         "combined_pricing_stock",
+                        "pricing_enhanced",
+                        "stock_enhanced",
                     ]:
                         # Use enhanced context for specialized prompts
                         generated_response = generate_enhanced_response_with_context(
