@@ -34,66 +34,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
 
-# Configure Flask app for both direct execution and Flask CLI
-app.config['PORT'] = int(os.getenv("PORT", 5001))
-app.config['DEBUG'] = os.getenv("FLASK_ENV") != "production"
-
 # Global variables for tracking
 app_start_time = datetime.now()
 request_count = 0
-
-def initialize_app():
-    """Initialize app configuration and validate environment - works for both python app.py and flask run"""
-    logger.info("=" * 50)
-    logger.info("Starting Response Engine API")
-    logger.info("=" * 50)
-    
-    required_env_vars = [
-        "OPENAI_API_KEY",
-        "PINECONE_API_KEY", 
-        "PINECONE_ENV",
-        "PINECONE_INDEX",
-        "DB_HOST",
-        "DB_NAME", 
-        "DB_USER",
-        "DB_PASSWORD",
-        "BACKEND_DB_HOST",
-        "BACKEND_DB_NAME",
-        "BACKEND_DB_USER", 
-        "BACKEND_DB_PASSWORD",
-    ]
-    
-    missing_vars = [var for var in required_env_vars if not os.getenv(var)]
-    if missing_vars:
-        logger.warning(f"Missing environment variables: {missing_vars}")
-        logger.warning("Some endpoints may not work properly without these variables")
-        logger.warning("Continuing startup for development/testing purposes")
-    else:
-        logger.info("✅ All required environment variables found")
-    
-    # Test connections on startup
-    try:
-        logger.info("Testing service connections...")
-        from modules.database import get_customer_request_data
-        from modules.ai import test_pinecone_connection, test_llm_generation
-        
-        # Test database with simple query
-        test_data = get_customer_request_data("1")
-        logger.info("✅ Database connection successful")
-        
-        # Test AI connections
-        test_pinecone_connection()
-        test_llm_generation()
-        
-        logger.info("✅ All service connections successful")
-    except Exception as e:
-        logger.warning(f"⚠️ Connection test failed: {e}")
-        logger.warning("API will start but some endpoints may not work properly")
-
-# Initialize app when module is imported (works for both execution methods)
-if not hasattr(initialize_app, '_initialized'):
-    initialize_app._initialized = True
-    initialize_app()
 
 
 def increment_request_count():
@@ -480,7 +423,57 @@ def get_stats():
 
 
 if __name__ == "__main__":
-    # Start the Flask application (initialization already done by initialize_app())
+    # Application startup
+    logger.info("=" * 50)
+    logger.info("Starting Response Engine API")
+    logger.info("=" * 50)
+
+    # Validate environment variables
+    required_env_vars = [
+        "OPENAI_API_KEY",
+        "PINECONE_API_KEY",
+        "PINECONE_ENV",
+        "PINECONE_INDEX",
+        "DB_HOST",
+        "DB_NAME",
+        "DB_USER",
+        "DB_PASSWORD",
+        "BACKEND_DB_HOST",
+        "BACKEND_DB_NAME",
+        "BACKEND_DB_USER",
+        "BACKEND_DB_PASSWORD",
+    ]
+
+    missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+    if missing_vars:
+        logger.error(f"Missing required environment variables: {missing_vars}")
+        logger.error("Please check your .env file")
+        exit(1)
+
+    logger.info("✅ All required environment variables found")
+
+    # Test connections on startup
+    try:
+        logger.info("Testing service connections...")
+
+        # Test basic database connection
+        test_db = get_customer_request_data("1")
+        logger.info("✅ Main database connection successful")
+
+        # Test Pinecone connection
+        pinecone_test = test_pinecone_connection()
+        if pinecone_test.get("openai_connected") and pinecone_test.get(
+            "pinecone_connected"
+        ):
+            logger.info("✅ Pinecone and OpenAI connections successful")
+        else:
+            logger.warning("⚠️ Pinecone or OpenAI connection issues detected")
+
+    except Exception as e:
+        logger.warning(f"⚠️ Connection test failed: {e}")
+        logger.warning("API will start but some endpoints may not work properly")
+
+    # Start the Flask application
     port = int(os.getenv("PORT", 5001))
     debug_mode = os.getenv("FLASK_ENV") == "development"
 
