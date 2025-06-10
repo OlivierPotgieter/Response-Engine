@@ -485,11 +485,16 @@ class ResponseBuilder:
             "woot_rep": customer_data.get("woot_rep"),
         }
 
-        # Build Pinecone results summary
+        # Build Pinecone results summary - FIXED: Use actual similar_responses_result data
+        similar_responses_result = processing_result.get("similar_responses_result", {})
+        search_result = similar_responses_result.get("search_result", {})
+
         pinecone_results = {
-            "similar_responses_found": 0,
-            "top_matches": [],
-            "response_examples": [],
+            "similar_responses_found": similar_responses_result.get(
+                "similar_responses_found", 0
+            ),
+            "top_matches": search_result.get("top_matches", []),
+            "response_examples": search_result.get("response_examples", [])[:2],
         }
 
         # ENHANCED: Extract real-time data metadata with fixed logic
