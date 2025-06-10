@@ -1,0 +1,182 @@
+<svg viewBox="0 0 1200 1400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="600" y="40" text-anchor="middle" font-size="28" font-weight="bold" fill="#1a1a1a">v</text>
+  
+  <!-- API Layer -->
+  <g id="api-layer">
+    <rect x="50" y="80" width="1100" height="120" fill="#e8f4f8" stroke="#0288d1" stroke-width="2" rx="10"/>
+    <text x="600" y="110" text-anchor="middle" font-size="20" font-weight="bold" fill="#0288d1">Flask API Layer</text>
+    
+    <!-- Endpoints -->
+    <rect x="100" y="130" width="120" height="50" fill="#ffffff" stroke="#0288d1" stroke-width="1" rx="5"/>
+    <text x="160" y="160" text-anchor="middle" font-size="12" fill="#333">/health</text>
+    
+    <rect x="250" y="130" width="120" height="50" fill="#ffffff" stroke="#0288d1" stroke-width="1" rx="5"/>
+    <text x="310" y="160" text-anchor="middle" font-size="12" fill="#333">/test/&lt;id&gt;</text>
+    
+    <rect x="400" y="130" width="120" height="50" fill="#ffffff" stroke="#0288d1" stroke-width="1" rx="5"/>
+    <text x="460" y="160" text-anchor="middle" font-size="12" fill="#333">/process/&lt;id&gt;</text>
+    
+    <rect x="550" y="130" width="120" height="50" fill="#ffffff" stroke="#0288d1" stroke-width="1" rx="5"/>
+    <text x="610" y="160" text-anchor="middle" font-size="12" fill="#333">/summary/&lt;id&gt;</text>
+    
+    <rect x="700" y="130" width="120" height="50" fill="#ffffff" stroke="#0288d1" stroke-width="1" rx="5"/>
+    <text x="760" y="160" text-anchor="middle" font-size="12" fill="#333">/validate/&lt;id&gt;</text>
+    
+    <rect x="850" y="130" width="120" height="50" fill="#ffffff" stroke="#0288d1" stroke-width="1" rx="5"/>
+    <text x="910" y="155" text-anchor="middle" font-size="11" fill="#333">/debug/</text>
+    <text x="910" y="170" text-anchor="middle" font-size="11" fill="#333">connections</text>
+  </g>
+  
+  <!-- Processing Layer -->
+  <g id="processing-layer">
+    <rect x="50" y="240" width="1100" height="300" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="10"/>
+    <text x="600" y="270" text-anchor="middle" font-size="20" font-weight="bold" fill="#7b1fa2">Data Processing Layer</text>
+    
+    <!-- Early Exit -->
+    <rect x="100" y="300" width="200" height="80" fill="#ffebee" stroke="#c62828" stroke-width="2" rx="5"/>
+    <text x="200" y="325" text-anchor="middle" font-size="14" font-weight="bold" fill="#c62828">Early Exit Checks</text>
+    <text x="200" y="345" text-anchor="middle" font-size="11" fill="#666">• automated_response flag</text>
+    <text x="200" y="360" text-anchor="middle" font-size="11" fill="#666">• Out-of-scope intents</text>
+    
+    <!-- Intent Classification -->
+    <rect x="350" y="300" width="200" height="80" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2" rx="5"/>
+    <text x="450" y="325" text-anchor="middle" font-size="14" font-weight="bold" fill="#2e7d32">Intent Classification</text>
+    <text x="450" y="345" text-anchor="middle" font-size="11" fill="#666">• Feature extraction</text>
+    <text x="450" y="360" text-anchor="middle" font-size="11" fill="#666">• ML model prediction</text>
+    
+    <!-- Data Needs -->
+    <rect x="600" y="300" width="200" height="80" fill="#fff3e0" stroke="#e65100" stroke-width="2" rx="5"/>
+    <text x="700" y="325" text-anchor="middle" font-size="14" font-weight="bold" fill="#e65100">Data Needs Detection</text>
+    <text x="700" y="345" text-anchor="middle" font-size="11" fill="#666">• Intent-based (primary)</text>
+    <text x="700" y="360" text-anchor="middle" font-size="11" fill="#666">• Regex keywords</text>
+    
+    <!-- Product Viability -->
+    <rect x="850" y="300" width="200" height="80" fill="#e1f5fe" stroke="#0277bd" stroke-width="2" rx="5"/>
+    <text x="950" y="325" text-anchor="middle" font-size="14" font-weight="bold" fill="#0277bd">Product Viability</text>
+    <text x="950" y="345" text-anchor="middle" font-size="11" fill="#666">• EOL detection</text>
+    <text x="950" y="360" text-anchor="middle" font-size="11" fill="#666">• Alternative selection</text>
+    
+    <!-- Context Building -->
+    <rect x="350" y="410" width="450" height="100" fill="#fce4ec" stroke="#c2185b" stroke-width="2" rx="5"/>
+    <text x="575" y="440" text-anchor="middle" font-size="14" font-weight="bold" fill="#c2185b">Enhanced Context Building</text>
+    <text x="575" y="460" text-anchor="middle" font-size="11" fill="#666">• Prioritization strategy selection</text>
+    <text x="575" y="475" text-anchor="middle" font-size="11" fill="#666">• Real-time data integration</text>
+    <text x="575" y="490" text-anchor="middle" font-size="11" fill="#666">• Example selection</text>
+  </g>
+  
+  <!-- AI Operations Layer -->
+  <g id="ai-layer">
+    <rect x="50" y="580" width="1100" height="250" fill="#e8eaf6" stroke="#3f51b5" stroke-width="2" rx="10"/>
+    <text x="600" y="610" text-anchor="middle" font-size="20" font-weight="bold" fill="#3f51b5">AI Operations Layer</text>
+    
+    <!-- Pinecone -->
+    <rect x="100" y="640" width="300" height="150" fill="#f5f5f5" stroke="#616161" stroke-width="2" rx="5"/>
+    <text x="250" y="670" text-anchor="middle" font-size="16" font-weight="bold" fill="#616161">Pinecone Vector Search</text>
+    <text x="250" y="695" text-anchor="middle" font-size="12" fill="#666">• Embedding generation</text>
+    <text x="250" y="710" text-anchor="middle" font-size="12" fill="#666">• Similarity search</text>
+    <text x="250" y="725" text-anchor="middle" font-size="12" fill="#666">• Response examples</text>
+    <rect x="130" y="745" width="240" height="30" fill="#b39ddb" stroke="#7e57c2" stroke-width="1" rx="3"/>
+    <text x="250" y="765" text-anchor="middle" font-size="11" fill="#fff">labeled_full_replies.csv</text>
+    
+    <!-- OpenAI -->
+    <rect x="450" y="640" width="300" height="150" fill="#f5f5f5" stroke="#616161" stroke-width="2" rx="5"/>
+    <text x="600" y="670" text-anchor="middle" font-size="16" font-weight="bold" fill="#616161">OpenAI GPT-4</text>
+    <text x="600" y="695" text-anchor="middle" font-size="12" fill="#666">• Intent-based prompts</text>
+    <text x="600" y="710" text-anchor="middle" font-size="12" fill="#666">• Real-time data priority</text>
+    <text x="600" y="725" text-anchor="middle" font-size="12" fill="#666">• Fallback generation</text>
+    <rect x="480" y="745" width="240" height="30" fill="#81c784" stroke="#66bb6a" stroke-width="1" rx="3"/>
+    <text x="600" y="765" text-anchor="middle" font-size="11" fill="#fff">Response + Rep Signature</text>
+    
+    <!-- Product Search -->
+    <rect x="800" y="640" width="300" height="150" fill="#f5f5f5" stroke="#616161" stroke-width="2" rx="5"/>
+    <text x="950" y="670" text-anchor="middle" font-size="16" font-weight="bold" fill="#616161">Product Search</text>
+    <text x="950" y="695" text-anchor="middle" font-size="12" fill="#666">• Pattern extraction</text>
+    <text x="950" y="710" text-anchor="middle" font-size="12" fill="#666">• Database lookup</text>
+    <text x="950" y="725" text-anchor="middle" font-size="12" fill="#666">• Confidence scoring</text>
+    <rect x="830" y="745" width="240" height="30" fill="#ffab91" stroke="#ff8a65" stroke-width="1" rx="3"/>
+    <text x="950" y="765" text-anchor="middle" font-size="11" fill="#fff">Product Identifier (New)</text>
+  </g>
+  
+  <!-- Database Layer -->
+  <g id="database-layer">
+    <rect x="50" y="870" width="1100" height="200" fill="#e0f2f1" stroke="#00796b" stroke-width="2" rx="10"/>
+    <text x="600" y="900" text-anchor="middle" font-size="20" font-weight="bold" fill="#00796b">Database Layer</text>
+    
+    <!-- Main DB -->
+    <rect x="150" y="930" width="350" height="110" fill="#ffffff" stroke="#00796b" stroke-width="2" rx="5"/>
+    <text x="325" y="960" text-anchor="middle" font-size="14" font-weight="bold" fill="#00796b">Main Database</text>
+    <text x="325" y="980" text-anchor="middle" font-size="11" fill="#666">• availability_conversion</text>
+    <text x="325" y="995" text-anchor="middle" font-size="11" fill="#666">• availability_custom_body</text>
+    <text x="325" y="1010" text-anchor="middle" font-size="11" fill="#666">• Customer requests</text>
+    
+    <!-- Backend DB -->
+    <rect x="600" y="930" width="350" height="110" fill="#ffffff" stroke="#00796b" stroke-width="2" rx="5"/>
+    <text x="775" y="960" text-anchor="middle" font-size="14" font-weight="bold" fill="#00796b">Backend Database</text>
+    <text x="775" y="980" text-anchor="middle" font-size="11" fill="#666">• Products table</text>
+    <text x="775" y="995" text-anchor="middle" font-size="11" fill="#666">• Inventory data</text>
+    <text x="775" y="1010" text-anchor="middle" font-size="11" fill="#666">• Pricing & availability</text>
+  </g>
+  
+  <!-- Data Flow Arrows -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+    </marker>
+  </defs>
+  
+  <!-- Flow arrows -->
+  <path d="M 600 200 L 600 240" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <path d="M 600 540 L 600 580" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <path d="M 600 830 L 600 870" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Side connections -->
+  <path d="M 200 380 L 200 410" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <path d="M 450 380 L 450 410" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <path d="M 700 380 L 700 410" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <path d="M 950 380 L 950 410" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Key Features Box -->
+  <rect x="50" y="1100" width="1100" height="250" fill="#fafafa" stroke="#9e9e9e" stroke-width="2" rx="10"/>
+  <text x="600" y="1130" text-anchor="middle" font-size="20" font-weight="bold" fill="#424242">Key System Features</text>
+  
+  <g transform="translate(100, 1160)">
+    <circle cx="10" cy="10" r="5" fill="#4caf50"/>
+    <text x="25" y="15" font-size="14" fill="#333">Real-time data prioritization for pricing/stock queries</text>
+  </g>
+  
+  <g transform="translate(100, 1190)">
+    <circle cx="10" cy="10" r="5" fill="#2196f3"/>
+    <text x="25" y="15" font-size="14" fill="#333">Dual-layer detection: Intent-based + Regex keywords</text>
+  </g>
+  
+  <g transform="translate(100, 1220)">
+    <circle cx="10" cy="10" r="5" fill="#ff9800"/>
+    <text x="25" y="15" font-size="14" fill="#333">Product viability checks with EOL detection</text>
+  </g>
+  
+  <g transform="translate(100, 1250)">
+    <circle cx="10" cy="10" r="5" fill="#9c27b0"/>
+    <text x="25" y="15" font-size="14" fill="#333">Graceful fallback mechanisms</text>
+  </g>
+  
+  <g transform="translate(650, 1160)">
+    <circle cx="10" cy="10" r="5" fill="#f44336"/>
+    <text x="25" y="15" font-size="14" fill="#333">Early exit optimization for cost savings</text>
+  </g>
+  
+  <g transform="translate(650, 1190)">
+    <circle cx="10" cy="10" r="5" fill="#3f51b5"/>
+    <text x="25" y="15" font-size="14" fill="#333">Vector similarity search with Pinecone</text>
+  </g>
+  
+  <g transform="translate(650, 1220)">
+    <circle cx="10" cy="10" r="5" fill="#009688"/>
+    <text x="25" y="15" font-size="14" fill="#333">Intent-based prompt engineering</text>
+  </g>
+  
+  <g transform="translate(650, 1250)">
+    <circle cx="10" cy="10" r="5" fill="#795548"/>
+    <text x="25" y="15" font-size="14" fill="#333">Automatic rep signature appending</text>
+  </g>
+</svg>
