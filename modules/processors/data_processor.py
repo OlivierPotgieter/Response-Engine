@@ -31,6 +31,10 @@ try:
         initialize_product_identification_system,
         get_system_health,
     )
+    from ..product_identification.confidence import (
+        should_use_extracted_product,
+        ResponseValidator,
+    )
 
     AI_PRODUCT_IDENTIFICATION_AVAILABLE = True
     logger = logging.getLogger(__name__)
@@ -39,6 +43,14 @@ except ImportError as e:
     AI_PRODUCT_IDENTIFICATION_AVAILABLE = False
     logger = logging.getLogger(__name__)
     logger.warning(f"⚠️ AI Product Identification not available: {e}")
+
+    # Fallback implementations for confidence functions
+    def should_use_extracted_product(extraction_result):
+        return False, "insufficient_confidence"
+
+    class ResponseValidator:
+        def validate_response(self, response, context):
+            return True, {}
 
     # Fallback functions with same interface
     def search_comment_for_products(comment: str, max_results: int = 3) -> Dict:
@@ -527,6 +539,9 @@ class DataProcessor:
                     }
                     suggestions.append(suggestion)
 
+            # ENHANCED: Use AGENTS.md confidence evaluation
+            should_use, confidence_level = should_use_extracted_product(search_results)
+
             return {
                 "search_attempted": True,
                 "ai_system_available": AI_PRODUCT_IDENTIFICATION_AVAILABLE,
@@ -537,6 +552,9 @@ class DataProcessor:
                 "confidence": search_results.get("search_summary", {}).get(
                     "extraction_confidence", 0
                 ),
+                "confidence_level": confidence_level,
+                "should_use_for_pricing": should_use
+                and confidence_level in ["high_confidence", "medium_confidence"],
                 "search_terms": search_results.get("search_summary", {}).get(
                     "search_terms_used", []
                 ),
@@ -546,7 +564,7 @@ class DataProcessor:
                 "processing_time": search_results.get("search_summary", {}).get(
                     "processing_time", 0
                 ),
-                "note": "AI-powered product identification using embeddings and vector search",
+                "note": "AI-powered product identification using embeddings and vector search with AGENTS.md confidence evaluation",
             }
 
         except Exception as e:
@@ -1128,6 +1146,22 @@ class DataProcessor:
                         )
                         generation_method = "simple_fallback"
                         logger.info("Generated response using simple fallback method")
+
+                    # ENHANCED: Validate response quality using AGENTS.md validator
+                    validator = ResponseValidator()
+                    is_valid, validation_checks = validator.validate_response(
+                        generated_response, enhanced_context
+                    )
+
+                    if not is_valid:
+                        logger.warning(
+                            f"Response validation failed: {validation_checks}"
+                        )
+
+                    enhanced_context["response_validation"] = {
+                        "is_valid": is_valid,
+                        "checks": validation_checks,
+                    }
 
                 except Exception as e:
                     logger.error(f"Error generating response: {e}")
