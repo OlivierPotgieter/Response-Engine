@@ -681,6 +681,9 @@ class DataProcessor:
             # Always include product details but mark their availability
             context["product_details"] = product_details
             context["context_timestamp"] = datetime.now().isoformat()
+            
+            # FIXED: Map product search results to real_time_data structure for enhanced generation
+            context = self._map_product_search_to_real_time_data(context, product_details)
 
             return context
 
@@ -721,6 +724,76 @@ class DataProcessor:
             )
 
         return real_time_data
+
+    def _map_product_search_to_real_time_data(self, context: Dict, product_details: Dict) -> Dict:
+        """
+        Map product search results to real_time_data structure expected by enhanced generation
+        
+        Args:
+            context: Current context with product search results
+            product_details: Product details from database lookup
+            
+        Returns:
+            Updated context with properly structured real_time_data
+        """
+        try:
+            # Get product search results from AI system
+            product_search_result = context.get("product_search_result", {})
+            best_match = product_search_result.get("best_match", {})
+            
+            # If we have AI product search results but no database product data
+            if best_match and not context.get("product_selection", {}).get("has_product_data", False):
+                logger.info("Mapping AI product search results to real_time_data structure")
+                
+                # Create mock product selection based on AI search results
+                mock_product_selection = {
+                    "primary_product": {
+                        "product_id": best_match.get("product_id"),
+                        "product_name": best_match.get("name", ""),
+                        "sku": best_match.get("sku", ""),
+                        "category": best_match.get("category", ""),
+                        "relevance_score": best_match.get("relevance_score", 0.0),
+                        "is_viable": True,
+                        "viability_reason": f"AI-identified product with {best_match.get('relevance_score', 0.0):.1%} relevance"
+                    },
+                    "has_product_data": True,
+                    "selection_reason": "Using AI-identified product match"
+                }
+                
+                context["product_selection"] = mock_product_selection
+                
+                # Create real_time_data structure expected by enhanced generation
+                if not context.get("real_time_data") or context["real_time_data"].get("note"):
+                    context["real_time_data"] = {
+                        "primary_product": {
+                            "product_name": best_match.get("name", ""),
+                            "sku": best_match.get("sku", ""),
+                            "product_id": best_match.get("product_id"),
+                            "category": best_match.get("category", ""),
+                            "is_viable": True,
+                            "viability_reason": f"AI-identified with {best_match.get('relevance_score', 0.0):.1%} relevance",
+                            "pricing": {
+                                "current_price": "TBD",
+                                "note": "Pricing information not available - recommend contacting sales"
+                            },
+                            "stock": {
+                                "is_in_stock": None,
+                                "note": "Stock information not available - recommend contacting sales"
+                            }
+                        },
+                        "secondary_product": {},
+                        "product_selection_info": mock_product_selection,
+                        "data_freshness": datetime.now().isoformat(),
+                        "data_source": "ai_product_identification"
+                    }
+                    
+                    logger.info(f"Created real_time_data structure for AI-identified product: {best_match.get('name', 'Unknown')}")
+            
+            return context
+            
+        except Exception as e:
+            logger.error(f"Error mapping product search to real_time_data: {e}")
+            return context
 
     def _format_product_real_time_data(
         self, product: Dict, data_needs: Dict, include_all: bool = True
