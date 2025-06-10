@@ -549,9 +549,7 @@ class DataProcessor:
                 "has_suggestions": has_suggestions,
                 "suggestions": suggestions,
                 "best_match": search_results.get("best_match"),
-                "confidence": search_results.get("search_summary", {}).get(
-                    "extraction_confidence", 0
-                ),
+                "confidence": self._calculate_confidence_from_search_results(search_results),
                 "confidence_level": confidence_level,
                 "should_use_for_pricing": should_use
                 and confidence_level in ["high_confidence", "medium_confidence"],
@@ -577,6 +575,35 @@ class DataProcessor:
                 "suggestions": [],
                 "note": "AI product search failed - check system health and initialization",
             }
+    def _calculate_confidence_from_search_results(self, search_results: Dict) -> float:
+        """
+        Calculate confidence from search results using relevance scores
+        
+        Args:
+            search_results: Search results from product identification
+            
+        Returns:
+            Confidence score between 0 and 1
+        """
+        if not search_results or not search_results.get("search_successful", False):
+            return 0.0
+            
+        best_match = search_results.get("best_match")
+        if not best_match:
+            return 0.0
+            
+        relevance_score = best_match.get("relevance_score", 0.0)
+        
+        if relevance_score >= 0.7:
+            confidence = min(0.95, relevance_score + 0.2)  # High confidence
+        elif relevance_score >= 0.5:
+            confidence = relevance_score + 0.1  # Medium confidence  
+        else:
+            confidence = relevance_score  # Low confidence
+            
+        return confidence
+
+
 
     def build_context_with_real_data(
         self,

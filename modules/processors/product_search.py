@@ -160,6 +160,10 @@ class ProductSearchPlaceholder:
             if results["capacities_found"]:
                 confidence += 0.1  # Capacity indicators add some confidence
 
+            # Boost confidence if we have good search results
+            if hasattr(self, '_last_search_relevance') and self._last_search_relevance > 0.5:
+                confidence = max(confidence, self._last_search_relevance)
+
             results["confidence_score"] = min(confidence, 1.0)
 
             logger.info(
