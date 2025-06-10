@@ -80,13 +80,13 @@ class LLMGenerator:
         # Clean the response - remove any existing signatures
         cleaned_response = response.strip()
 
-        # Remove common ending patterns that might conflict
+        # Remove common ending patterns that might conflict - only match actual signature blocks
         ending_patterns = [
-            r"\n\nKind [Rr]egards,?.*?$",
-            r"\n\nBest [Rr]egards,?.*?$",
-            r"\n\nSincerely,?.*?$",
-            r"\n\nCheers,?.*?$",
-            r"\n\nThank you,?.*?$",
+            r"\n\nKind [Rr]egards,?\s*[\w\s]*$",
+            r"\n\nBest [Rr]egards,?\s*[\w\s]*$", 
+            r"\n\nSincerely,?\s*[\w\s]*$",
+            r"\n\nCheers,?\s*[\w\s]*$",
+            r"\n\nThank you,?\s*[\w\s]*$",
         ]
 
         for pattern in ending_patterns:
@@ -249,14 +249,35 @@ class LLMGenerator:
                     )
 
         else:
-            # No viable product or pricing data
-            prompt_parts.extend(
-                [
-                    "⚠️ PRODUCT AVAILABILITY NOTICE:",
-                    "The requested product is no longer available or has been discontinued.",
-                    "",
-                ]
-            )
+            # No viable product or pricing data - but check if we have AI-identified products
+            product_search_result = context.get("product_search_result", {})
+            best_match = product_search_result.get("best_match", {})
+            
+            if best_match and product_search_result.get("confidence", 0) > 0.5:
+                # We have AI-identified products but no pricing data
+                prompt_parts.extend(
+                    [
+                        "🔍 PRODUCT IDENTIFICATION RESULTS:",
+                        f"Based on your description, I found: {best_match.get('name', 'Product match')}",
+                        f"• SKU: {best_match.get('sku', 'N/A')}",
+                        f"• Category: {best_match.get('category', 'N/A')}",
+                        f"• Match Confidence: {product_search_result.get('confidence', 0):.1%}",
+                        "",
+                        "⚠️ PRICING AVAILABILITY NOTICE:",
+                        "While I found a matching product, current pricing and availability information is not immediately available.",
+                        "I recommend contacting our sales team for the most up-to-date pricing and stock information.",
+                        "",
+                    ]
+                )
+            else:
+                # No viable product or pricing data
+                prompt_parts.extend(
+                    [
+                        "⚠️ PRODUCT AVAILABILITY NOTICE:",
+                        "The requested product is no longer available or has been discontinued.",
+                        "",
+                    ]
+                )
 
             if (
                 viability["alternative_recommended"]
