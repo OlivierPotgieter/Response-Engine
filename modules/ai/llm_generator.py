@@ -13,6 +13,29 @@ from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
+try:
+    from product_identification.confidence import (
+        ConfidenceThresholds,
+        get_confidence_level,
+    )
+except ImportError:
+    # Fallback implementations
+    class ConfidenceThresholds:
+        HIGH_CONFIDENCE = 0.85
+        MEDIUM_CONFIDENCE = 0.70
+        LOW_CONFIDENCE = 0.50
+        MINIMUM_THRESHOLD = 0.50
+
+    def get_confidence_level(confidence_score):
+        if confidence_score >= ConfidenceThresholds.HIGH_CONFIDENCE:
+            return "high"
+        elif confidence_score >= ConfidenceThresholds.MEDIUM_CONFIDENCE:
+            return "medium"
+        elif confidence_score >= ConfidenceThresholds.LOW_CONFIDENCE:
+            return "low"
+        else:
+            return "insufficient"
+
 
 class LLMGenerator:
     def __init__(self, model: str = "gpt-4o", temperature: float = 0.3):
@@ -160,8 +183,24 @@ class LLMGenerator:
         """
         viability = self._analyze_product_viability_for_prompt(context)
 
+        # ENHANCED: Add confidence-based language guidance
+        confidence = context.get("product_search_result", {}).get("confidence", 0)
+        confidence_level = get_confidence_level(confidence)
+
+        confidence_language_guide = {
+            "high": "Use authoritative language: 'The [product] is currently priced at...'",
+            "medium": "Use qualified language: 'Based on your description, the [product] appears to be...'",
+            "low": "Use exploratory language: 'I found several products that might match. Could you confirm...'",
+            "insufficient": "Provide general guidance and ask for clarification",
+        }
+
         prompt_parts = [
             "You are Wootware's expert sales assistant responding to a PRICING INQUIRY.",
+            "",
+            f"🎯 CONFIDENCE GUIDANCE ({confidence_level.upper()} confidence: {confidence:.2f}):",
+            confidence_language_guide.get(
+                confidence_level, confidence_language_guide["insufficient"]
+            ),
             "",
             "⚠️ CRITICAL: Use ONLY the current pricing data provided below. DO NOT use any pricing from examples as it may be outdated.",
             "",
@@ -1221,8 +1260,12 @@ class LLMGenerator:
         Returns:
             Standard enhanced prompt
         """
+        # ENHANCED: Add confidence-based language guidance
+        confidence = context.get("product_search_result", {}).get("confidence", 0)
+        confidence_level = get_confidence_level(confidence)
+
         prompt_parts = [
-            "You are Wootware's expert sales assistant. Generate a helpful, accurate response based on the following context:",
+            f"You are Wootware's expert sales assistant. Generate a helpful, accurate response with {confidence_level} confidence language:",
             "",
             f"CUSTOMER COMMENT: {customer_comment}",
             "",

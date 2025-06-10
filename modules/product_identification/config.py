@@ -40,7 +40,7 @@ class ProductIdentifierConfig:
     # Search Configuration
     SEARCH_CONFIG = {
         "top_k": 10,  # Number of results to retrieve
-        "confidence_threshold": {"high": 0.8, "medium": 0.6, "low": 0.4},
+        "confidence_threshold": {"high": 0.85, "medium": 0.70, "low": 0.50},
         "max_products_per_comment": 5,
     }
 
