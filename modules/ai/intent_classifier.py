@@ -45,11 +45,14 @@ class IntentClassifier:
             self.pipeline = joblib.load(self.model_path)
             logger.info(f"Intent classification pipeline loaded from {self.model_path}")
         except FileNotFoundError:
-            logger.error(f"Intent classification model not found at {self.model_path}")
-            raise
+            logger.warning(
+                f"Intent classification model not found at {self.model_path}"
+            )
+            logger.warning("Using fallback intent classification based on keywords")
+            self.pipeline = None
         except Exception as e:
             logger.error(f"Error loading intent classification model: {e}")
-            raise
+            self.pipeline = None
 
     def _featurize_comment(self, comment: str) -> pd.DataFrame:
         """
@@ -122,25 +125,74 @@ class IntentClassifier:
                 logger.warning("Empty comment provided for intent prediction")
                 return "General Inquiry"
 
-            # Extract features
-            features_df = self._featurize_comment(comment)
-
-            # Predict using the pipeline
-            prediction = self.pipeline.predict(features_df)[0]
-
-            # Map to intent label
-            intent_label = self.intent_labels.get(int(prediction), "General Inquiry")
-
-            logger.info(
-                f"Predicted intent '{intent_label}' for comment: {comment[:50]}..."
-            )
-            return intent_label
+            if self.pipeline is not None:
+                # Extract features
+                features_df = self._featurize_comment(comment)
+                # Predict using the pipeline
+                prediction = self.pipeline.predict(features_df)[0]
+                # Map to intent label
+                intent_label = self.intent_labels.get(
+                    int(prediction), "General Inquiry"
+                )
+                logger.info(
+                    f"ML predicted intent '{intent_label}' for comment: {comment[:50]}..."
+                )
+                return intent_label
+            else:
+                return self._predict_intent_by_keywords(comment)
 
         except Exception as e:
             logger.error(
                 f"Intent prediction error for comment '{comment[:50]}...': {e}"
             )
             return "General Inquiry"  # Fallback
+
+    def _predict_intent_by_keywords(self, comment: str) -> str:
+        """
+        Fallback intent prediction using keyword matching
+        """
+        comment_lower = comment.lower()
+
+        warranty_keywords = [
+            "warranty",
+            "guarantee",
+            "cover",
+            "covered",
+            "warrantee",
+            "under warranty",
+        ]
+        if any(keyword in comment_lower for keyword in warranty_keywords):
+            logger.info(
+                f"Keyword-based prediction: Warranty Inquiry for comment: {comment[:50]}..."
+            )
+            return "Warranty Inquiry"
+
+        pricing_keywords = [
+            "price",
+            "cost",
+            "pricing",
+            "how much",
+            "what does",
+            "r ",
+            " r",
+        ]
+        if any(keyword in comment_lower for keyword in pricing_keywords):
+            return "Pricing Inquiry"
+
+        stock_keywords = [
+            "stock",
+            "available",
+            "availability",
+            "in stock",
+            "out of stock",
+        ]
+        if any(keyword in comment_lower for keyword in stock_keywords):
+            return "Stock Availability"
+
+        logger.info(
+            f"Keyword-based prediction: General Inquiry for comment: {comment[:50]}..."
+        )
+        return "General Inquiry"
 
     def is_intent_in_scope(self, intent: str) -> bool:
         """

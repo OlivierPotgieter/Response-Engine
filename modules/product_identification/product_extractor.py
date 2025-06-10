@@ -10,9 +10,9 @@ from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 from collections import Counter
 
-from config import ProductIdentifierConfig
-from embedding_service import EmbeddingService
-from pinecone_manager import PineconeManager
+from .config import ProductIdentifierConfig
+from .embedding_service import EmbeddingService
+from .pinecone_manager import PineconeManager
 
 logger = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from openai import OpenAI
 import re
 
-from config import ProductIdentifierConfig
+from .config import ProductIdentifierConfig
 
 logger = logging.getLogger(__name__)
 
