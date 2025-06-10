@@ -945,7 +945,8 @@ class LLMGenerator:
         prompt_parts = [
             "You are Wootware's expert sales assistant responding to a WARRANTY INQUIRY.",
             "",
-            "🛡️ FOCUS: The customer is asking about warranty information - provide helpful warranty details.",
+            "🚨 CRITICAL: NEVER direct customers to contact manufacturers for warranty claims.",
+            "🛡️ FOCUS: Wootware handles ALL warranty claims internally - we are the customer's warranty support.",
             "",
             f"CUSTOMER INQUIRY: {customer_comment}",
             "",
@@ -982,7 +983,8 @@ class LLMGenerator:
                         [
                             "🛡️ WARRANTY INFORMATION:",
                             "• Warranty details available - check product specifications",
-                            "• Wootware handles warranty claims - we'll assist with the process",
+                            "• Wootware handles ALL warranty claims internally - we'll assist with the process",
+                            "• NEVER direct customers to contact manufacturers for warranty",
                             "",
                         ]
                     )
@@ -1050,11 +1052,12 @@ class LLMGenerator:
                     "RESPONSE GUIDELINES:",
                     "1. ✅ Use the warranty information provided above",
                     "2. ❌ DO NOT include pricing unless specifically requested",
-                    "3. Provide clear warranty terms and duration",
-                    "4. Guide on warranty claims process if needed",
-                    "5. Mention manufacturer warranty vs retailer support",
-                    "6. Be helpful and professional",
-                    "7. Do NOT include signature - it will be added automatically",
+                    "3. ❌ NEVER direct customers to contact manufacturers for warranty",
+                    "4. ✅ ALWAYS emphasize that Wootware handles warranty claims internally",
+                    "5. ✅ Provide clear warranty terms and duration when available",
+                    "6. ✅ Guide customers through Wootware's warranty claims process",
+                    "7. ✅ Be helpful and professional",
+                    "8. ❌ Do NOT include signature - it will be added automatically",
                 ]
             )
         else:
@@ -1063,12 +1066,13 @@ class LLMGenerator:
                     "RESPONSE GUIDELINES:",
                     "1. ✅ Acknowledge the warranty inquiry professionally",
                     "2. ✅ Offer to look up the specific product for detailed warranty info",
-                    "3. ✅ Provide general guidance on warranty claims if helpful",
-                    "4. ❌ DO NOT make up warranty terms without product data",
-                    "5. ❌ DO NOT claim products are discontinued without confirmation",
-                    "6. ✅ Ask for product details if needed for lookup",
-                    "7. Be helpful and offer next steps",
-                    "8. Do NOT include signature - it will be added automatically",
+                    "3. ✅ Emphasize that Wootware handles all warranty claims internally",
+                    "4. ❌ NEVER direct customers to contact manufacturers for warranty",
+                    "5. ❌ DO NOT make up warranty terms without product data",
+                    "6. ❌ DO NOT claim products are discontinued without confirmation",
+                    "7. ✅ Ask for product details if needed for lookup",
+                    "8. ✅ Be helpful and offer next steps through Wootware support",
+                    "9. ❌ Do NOT include signature - it will be added automatically",
                 ]
             )
 
