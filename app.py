@@ -481,4 +481,10 @@ if __name__ == "__main__":
     logger.info(f"Debug mode: {debug_mode}")
     logger.info("=" * 50)
 
-    app.run(debug=debug_mode, host="0.0.0.0", port=port)
+    if debug_mode:
+        app.run(debug=True, host="0.0.0.0", port=port)
+    else:
+        from werkzeug.serving import run_simple
+
+        logger.info("🚀 Running in production mode with Werkzeug WSGI server")
+        run_simple("0.0.0.0", port, app, use_reloader=False, use_debugger=False)
