@@ -7,6 +7,7 @@ import logging
 import pandas as pd
 import joblib
 from typing import Dict, List
+import sklearn
 
 logger = logging.getLogger(__name__)
 

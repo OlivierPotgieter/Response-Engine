@@ -17,7 +17,7 @@ class ConfidenceThresholds:
     HIGH_CONFIDENCE = 0.85  # Direct product match, use without hesitation
     MEDIUM_CONFIDENCE = 0.70  # Good match, use with slight hedging
     LOW_CONFIDENCE = 0.50  # Uncertain, offer multiple options
-    MINIMUM_THRESHOLD = 0.50  # Below this, don't attempt product-specific responses
+    MINIMUM_THRESHOLD = 0.49  # Below this, don't attempt product-specific responses
 
 
 def should_use_extracted_product(extraction_result: Dict) -> Tuple[bool, str]:

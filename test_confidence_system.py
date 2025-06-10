@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.append('/home/ubuntu/repos/Response-Engine/modules/product_identification')
 
-from confidence import should_use_extracted_product, ConfidenceThresholds, ResponseValidator
+from modules.product_identification.confidence import should_use_extracted_product, ResponseValidator, ConfidenceThresholds
 
 def test_confidence_thresholds():
     """Test confidence threshold logic"""
