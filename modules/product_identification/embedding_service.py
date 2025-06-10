@@ -6,11 +6,8 @@ Generates embeddings for products and customer comments using OpenAI
 import logging
 import time
 import pickle
-import json
-from typing import List, Dict, Optional, Tuple, Any
+from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
-import numpy as np
-import openai
 from openai import OpenAI
 import re
 
@@ -22,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ProductEmbedding:
     """Data class for product embeddings"""
+
     product_id: int
     embedding: List[float]
     metadata: Dict[str, Any]
@@ -39,7 +37,9 @@ class EmbeddingService:
         self.embeddings_cache = {}
 
         if not ProductIdentifierConfig.OPENAI_API_KEY:
-            raise ValueError("OpenAI API key not found. Please set OPENAI_API_KEY environment variable.")
+            raise ValueError(
+                "OpenAI API key not found. Please set OPENAI_API_KEY environment variable."
+            )
 
     def preprocess_text(self, text: str) -> str:
         """
@@ -58,26 +58,26 @@ class EmbeddingService:
         text = text.lower().strip()
 
         # Remove extra whitespace and normalize
-        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r"\s+", " ", text)
 
         # Remove special characters but keep important ones
-        text = re.sub(r'[^\w\s\-\.\(\)\/\+]', ' ', text)
+        text = re.sub(r"[^\w\s\-\.\(\)\/\+]", " ", text)
 
         # Remove common prefixes/suffixes that don't add meaning
-        prefixes_to_remove = ['wootware', 'desktop', 'notebook']
+        prefixes_to_remove = ["wootware", "desktop", "notebook"]
         for prefix in prefixes_to_remove:
-            text = re.sub(f'^{prefix}\\s+', '', text)
-            text = re.sub(f'\\s+{prefix}\\s+', ' ', text)
+            text = re.sub(f"^{prefix}\\s+", "", text)
+            text = re.sub(f"\\s+{prefix}\\s+", " ", text)
 
         # Normalize common terms
         normalizations = {
-            'graphics card': 'gpu',
-            'video card': 'gpu',
-            'processor': 'cpu',
-            'central processing unit': 'cpu',
-            'solid state drive': 'ssd',
-            'hard disk drive': 'hdd',
-            'random access memory': 'ram'
+            "graphics card": "gpu",
+            "video card": "gpu",
+            "processor": "cpu",
+            "central processing unit": "cpu",
+            "solid state drive": "ssd",
+            "hard disk drive": "hdd",
+            "random access memory": "ram",
         }
 
         for old_term, new_term in normalizations.items():
@@ -99,17 +99,17 @@ class EmbeddingService:
         components = []
 
         # Core product identifiers (always include)
-        core_fields = ['name', 'manufacturer', 'category', 'sku']
+        core_fields = ["name", "manufacturer", "category", "sku"]
         for field in core_fields:
             if product_data.get(field):
                 components.append(str(product_data[field]))
 
         # Use the SearchText field - this is what it's designed for!
-        if product_data.get('search_text'):
-            components.append(product_data['search_text'])
+        if product_data.get("search_text"):
+            components.append(product_data["search_text"])
 
         # Join, clean, and return
-        searchable_text = ' '.join(components)
+        searchable_text = " ".join(components)
         return self.preprocess_text(searchable_text)
 
     def _extract_feature_words(self, text: str) -> List[str]:
@@ -126,35 +126,68 @@ class EmbeddingService:
         # Important feature keywords that add value
         valuable_features = [
             # Performance features
-            'turbo', 'boost', 'overclocked', 'overclocking', 'factory', 'custom',
-
+            "turbo",
+            "boost",
+            "overclocked",
+            "overclocking",
+            "factory",
+            "custom",
             # Build quality features
-            'military', 'grade', 'reinforced', 'premium', 'professional', 'enterprise',
-
+            "military",
+            "grade",
+            "reinforced",
+            "premium",
+            "professional",
+            "enterprise",
             # Cooling features
-            'liquid', 'cooled', 'silent', 'quiet', 'fanless', 'thermal',
-
+            "liquid",
+            "cooled",
+            "silent",
+            "quiet",
+            "fanless",
+            "thermal",
             # Aesthetic features
-            'rgb', 'led', 'backlit', 'illuminated', 'tempered', 'glass',
-
+            "rgb",
+            "led",
+            "backlit",
+            "illuminated",
+            "tempered",
+            "glass",
             # Connectivity features
-            'wireless', 'bluetooth', 'wifi', 'gigabit', 'dual', 'quad',
-
+            "wireless",
+            "bluetooth",
+            "wifi",
+            "gigabit",
+            "dual",
+            "quad",
             # Gaming specific
-            'gaming', 'esports', 'competitive', 'streaming', 'content',
-
+            "gaming",
+            "esports",
+            "competitive",
+            "streaming",
+            "content",
             # Form factors
-            'compact', 'mini', 'micro', 'slim', 'low-profile', 'full-size',
-
+            "compact",
+            "mini",
+            "micro",
+            "slim",
+            "low-profile",
+            "full-size",
             # Efficiency
-            'energy', 'efficient', 'eco', 'green', 'sustainable',
-
+            "energy",
+            "efficient",
+            "eco",
+            "green",
+            "sustainable",
             # Compatibility
-            'compatible', 'universal', 'standard', 'certified'
+            "compatible",
+            "universal",
+            "standard",
+            "certified",
         ]
 
         found_features = []
-        words = re.findall(r'\b[a-zA-Z]{3,}\b', text)
+        words = re.findall(r"\b[a-zA-Z]{3,}\b", text)
 
         for word in words:
             if word.lower() in valuable_features:
@@ -197,13 +230,13 @@ class EmbeddingService:
     def _get_category_terms(self, category: str) -> List[str]:
         """Get relevant terms for a product category"""
         category_mappings = {
-            'graphics cards': ['gpu', 'graphics', 'video card', 'gaming'],
-            'processors': ['cpu', 'processor', 'computing'],
-            'motherboards': ['motherboard', 'mobo', 'mainboard'],
-            'memory': ['ram', 'memory', 'ddr4', 'ddr5'],
-            'storage': ['storage', 'drive', 'ssd', 'hdd'],
-            'monitors': ['monitor', 'display', 'screen'],
-            'peripherals': ['gaming', 'rgb', 'mechanical']
+            "graphics cards": ["gpu", "graphics", "video card", "gaming"],
+            "processors": ["cpu", "processor", "computing"],
+            "motherboards": ["motherboard", "mobo", "mainboard"],
+            "memory": ["ram", "memory", "ddr4", "ddr5"],
+            "storage": ["storage", "drive", "ssd", "hdd"],
+            "monitors": ["monitor", "display", "screen"],
+            "peripherals": ["gaming", "rgb", "mechanical"],
         }
 
         category_lower = category.lower()
@@ -213,7 +246,9 @@ class EmbeddingService:
 
         return []
 
-    def generate_embedding(self, text: str, max_retries: int = 3) -> Optional[List[float]]:
+    def generate_embedding(
+        self, text: str, max_retries: int = 3
+    ) -> Optional[List[float]]:
         """
         Generate embedding for a single text
 
@@ -236,9 +271,7 @@ class EmbeddingService:
         for attempt in range(max_retries):
             try:
                 response = self.client.embeddings.create(
-                    model=self.config['model'],
-                    input=text,
-                    encoding_format="float"
+                    model=self.config["model"], input=text, encoding_format="float"
                 )
 
                 embedding = response.data[0].embedding
@@ -249,17 +282,22 @@ class EmbeddingService:
                 return embedding
 
             except Exception as e:
-                logger.warning(f"Embedding generation attempt {attempt + 1} failed: {e}")
+                logger.warning(
+                    f"Embedding generation attempt {attempt + 1} failed: {e}"
+                )
                 if attempt < max_retries - 1:
-                    time.sleep(self.config['retry_delay'] * (attempt + 1))
+                    time.sleep(self.config["retry_delay"] * (attempt + 1))
                 else:
-                    logger.error(f"Failed to generate embedding after {max_retries} attempts: {e}")
+                    logger.error(
+                        f"Failed to generate embedding after {max_retries} attempts: {e}"
+                    )
                     return None
 
         return None
 
-    def generate_batch_embeddings(self, texts: List[str], batch_size: Optional[int] = None) -> List[
-        Optional[List[float]]]:
+    def generate_batch_embeddings(
+        self, texts: List[str], batch_size: Optional[int] = None
+    ) -> List[Optional[List[float]]]:
         """
         Generate embeddings for multiple texts in batches
 
@@ -274,22 +312,30 @@ class EmbeddingService:
             return []
 
         if batch_size is None:
-            batch_size = self.config['batch_size']
+            batch_size = self.config["batch_size"]
 
         all_embeddings = []
         total_batches = (len(texts) + batch_size - 1) // batch_size
 
-        logger.info(f"Generating embeddings for {len(texts)} texts in {total_batches} batches")
+        logger.info(
+            f"Generating embeddings for {len(texts)} texts in {total_batches} batches"
+        )
 
         for i in range(0, len(texts), batch_size):
-            batch_texts = texts[i:i + batch_size]
+            batch_texts = texts[i : i + batch_size]
             batch_num = (i // batch_size) + 1
 
-            logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch_texts)} texts)")
+            logger.info(
+                f"Processing batch {batch_num}/{total_batches} ({len(batch_texts)} texts)"
+            )
 
             try:
                 # Filter out empty texts
-                valid_texts = [(idx, text) for idx, text in enumerate(batch_texts) if text and text.strip()]
+                valid_texts = [
+                    (idx, text)
+                    for idx, text in enumerate(batch_texts)
+                    if text and text.strip()
+                ]
 
                 if not valid_texts:
                     all_embeddings.extend([None] * len(batch_texts))
@@ -297,9 +343,9 @@ class EmbeddingService:
 
                 # Generate embeddings for valid texts
                 response = self.client.embeddings.create(
-                    model=self.config['model'],
+                    model=self.config["model"],
                     input=[text for _, text in valid_texts],
-                    encoding_format="float"
+                    encoding_format="float",
                 )
 
                 # Map embeddings back to original positions
@@ -318,7 +364,9 @@ class EmbeddingService:
                 time.sleep(0.1)
 
             except Exception as e:
-                logger.error(f"Batch embedding generation failed for batch {batch_num}: {e}")
+                logger.error(
+                    f"Batch embedding generation failed for batch {batch_num}: {e}"
+                )
                 all_embeddings.extend([None] * len(batch_texts))
 
         success_count = sum(1 for emb in all_embeddings if emb is not None)
@@ -326,12 +374,16 @@ class EmbeddingService:
 
         return all_embeddings
 
-    def create_product_embeddings(self, products_data: List[Dict]) -> List[ProductEmbedding]:
+    def create_product_embeddings(
+        self, products_data: List[Dict]
+    ) -> List[ProductEmbedding]:
         """
         Create embeddings using SearchText field approach
         Much simpler and cleaner
         """
-        logger.info(f"Creating embeddings for {len(products_data)} products using SearchText field")
+        logger.info(
+            f"Creating embeddings for {len(products_data)} products using SearchText field"
+        )
 
         # Create searchable texts using SearchText field
         searchable_texts = []
@@ -344,36 +396,41 @@ class EmbeddingService:
 
         # Create ProductEmbedding objects
         product_embeddings = []
-        current_time = time.strftime('%Y-%m-%d %H:%M:%S')
+        current_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
-        for i, (product, embedding, searchable_text) in enumerate(zip(products_data, embeddings, searchable_texts)):
+        for i, (product, embedding, searchable_text) in enumerate(
+            zip(products_data, embeddings, searchable_texts)
+        ):
             if embedding is not None:
                 # Create metadata for Pinecone
                 metadata = {
-                    'name': product.get('name', ''),
-                    'manufacturer': product.get('manufacturer', ''),
-                    'manufacturer_id': str(product.get('manufacturer_id', '')),
-                    'category': product.get('category', ''),
-                    'sku': product.get('sku', ''),
-                    'is_enabled': product.get('is_enabled', True),
-                    'is_eol': product.get('is_eol', False),
-                    'searchable_text': searchable_text[:1000]  # Limit metadata size
+                    "name": product.get("name", ""),
+                    "manufacturer": product.get("manufacturer", ""),
+                    "manufacturer_id": str(product.get("manufacturer_id", "")),
+                    "category": product.get("category", ""),
+                    "sku": product.get("sku", ""),
+                    "is_enabled": product.get("is_enabled", True),
+                    "is_eol": product.get("is_eol", False),
+                    "searchable_text": searchable_text[:1000],  # Limit metadata size
                 }
 
                 product_embedding = ProductEmbedding(
-                    product_id=product.get('product_id'),
+                    product_id=product.get("product_id"),
                     embedding=embedding,
                     metadata=metadata,
                     searchable_text=searchable_text,
-                    created_at=current_time
+                    created_at=current_time,
                 )
 
                 product_embeddings.append(product_embedding)
             else:
                 logger.warning(
-                    f"Failed to create embedding for product {product.get('product_id')}: {product.get('name')}")
+                    f"Failed to create embedding for product {product.get('product_id')}: {product.get('name')}"
+                )
 
-        logger.info(f"Successfully created {len(product_embeddings)} product embeddings using SearchText")
+        logger.info(
+            f"Successfully created {len(product_embeddings)} product embeddings using SearchText"
+        )
         return product_embeddings
 
     def preprocess_comment(self, comment: str) -> str:
@@ -394,12 +451,12 @@ class EmbeddingService:
 
         # Expand common abbreviations
         abbreviations = {
-            'gpu': 'graphics card',
-            'cpu': 'processor',
-            'mobo': 'motherboard',
-            'psu': 'power supply',
-            'ssd': 'solid state drive',
-            'hdd': 'hard drive'
+            "gpu": "graphics card",
+            "cpu": "processor",
+            "mobo": "motherboard",
+            "psu": "power supply",
+            "ssd": "solid state drive",
+            "hdd": "hard drive",
         }
 
         words = processed.split()
@@ -411,7 +468,7 @@ class EmbeddingService:
             else:
                 expanded_words.append(word)
 
-        return ' '.join(expanded_words)
+        return " ".join(expanded_words)
 
     def save_embeddings_cache(self, filepath: str = None):
         """Save embeddings cache to file"""
@@ -419,7 +476,7 @@ class EmbeddingService:
             filepath = ProductIdentifierConfig.EMBEDDINGS_CACHE_PATH
 
         try:
-            with open(filepath, 'wb') as f:
+            with open(filepath, "wb") as f:
                 pickle.dump(self.embeddings_cache, f)
             logger.info(f"Embeddings cache saved to {filepath}")
         except Exception as e:
@@ -431,9 +488,11 @@ class EmbeddingService:
             filepath = ProductIdentifierConfig.EMBEDDINGS_CACHE_PATH
 
         try:
-            with open(filepath, 'rb') as f:
+            with open(filepath, "rb") as f:
                 self.embeddings_cache = pickle.load(f)
-            logger.info(f"Embeddings cache loaded from {filepath} ({len(self.embeddings_cache)} entries)")
+            logger.info(
+                f"Embeddings cache loaded from {filepath} ({len(self.embeddings_cache)} entries)"
+            )
             return True
         except Exception as e:
             logger.warning(f"Failed to load embeddings cache: {e}")
@@ -443,9 +502,9 @@ class EmbeddingService:
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get statistics about embeddings cache"""
         return {
-            'cache_size': len(self.embeddings_cache),
-            'model_used': self.config['model'],
-            'dimension': self.config['dimension']
+            "cache_size": len(self.embeddings_cache),
+            "model_used": self.config["model"],
+            "dimension": self.config["dimension"],
         }
 
 
@@ -469,7 +528,7 @@ if __name__ == "__main__":
         # Test preprocessing
         test_comment = "Looking for a good GPU for gaming, maybe RTX 4080 or similar"
         processed = service.preprocess_comment(test_comment)
-        print(f"\n📝 Comment preprocessing:")
+        print("\n📝 Comment preprocessing:")
         print(f"   Original: {test_comment}")
         print(f"   Processed: {processed}")
 

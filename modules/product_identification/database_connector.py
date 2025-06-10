@@ -5,7 +5,7 @@ Now correctly uses Manufacturers table instead of Brands table
 
 import os
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 import mysql.connector
 from mysql.connector import Error
 from dataclasses import dataclass
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Product:
     """Product data class with correct manufacturer information"""
+
     product_id: int
     name: str
     sku: str
@@ -41,6 +42,7 @@ class Product:
 @dataclass
 class Manufacturer:
     """Manufacturer data class for the correct table"""
+
     id: int
     name: str
     # Add other fields from Manufacturers table as needed
@@ -67,21 +69,25 @@ class DatabaseConnector:
             if not user:
                 raise ValueError("BACKEND_DB_USER environment variable not set")
             if not password:
-                logger.warning("BACKEND_DB_PASSWORD environment variable not set (using empty password)")
+                logger.warning(
+                    "BACKEND_DB_PASSWORD environment variable not set (using empty password)"
+                )
 
             self.connection = mysql.connector.connect(
                 host=host,
                 database="backend_portal",
                 user=user,
                 password=password or "",
-                charset='utf8mb4',
+                charset="utf8mb4",
                 autocommit=True,
-                connect_timeout=10
+                connect_timeout=10,
             )
             logger.info("Connected to backend_portal database")
         except Error as e:
             logger.error(f"Database connection error: {e}")
-            logger.error(f"Connection parameters: host={host}, user={user}, database=backend_portal")
+            logger.error(
+                f"Connection parameters: host={host}, user={user}, database=backend_portal"
+            )
             raise
 
     def _ensure_connection(self):
@@ -129,8 +135,8 @@ class DatabaseConnector:
             for row in results:
                 # Create Manufacturer object - adapt based on actual table structure
                 manufacturer = Manufacturer(
-                    id=row.get('Id') or row.get('id'),  # Handle different case
-                    name=row.get('Name') or row.get('name') or '',
+                    id=row.get("Id") or row.get("id"),  # Handle different case
+                    name=row.get("Name") or row.get("name") or "",
                     # Add other fields as they exist in your table
                 )
                 manufacturers.append(manufacturer)
@@ -193,26 +199,29 @@ class DatabaseConnector:
             products = []
             for row in results:
                 product = Product(
-                    product_id=row['ProductId'],
-                    name=row['Name'] or '',
-                    sku=row['Sku'] or '',
-                    category=row['Category'] or '',
-                    manufacturer_id=row['ManufacturerId'] or 0,
-                    manufacturer_name=row['ManufacturerName'] or 'Unknown',  # Now from Manufacturers table
-                    current_price=float(row['CurrentPrice'] or 0),
-                    is_enabled=bool(row['IsEnabled']),
-                    is_eol=bool(row['IsEol']),
-                    is_in_stock=bool(row['IsInStock']),
-                    search_text=row['SearchText'] or '',
-                    short_description=row['ShortDescription'] or '',
-                    description=row['Description'] or '',
-                    popularity=float(row['Popularity'] or 0),
-                    created=str(row['Created'] or ''),
-                    updated=str(row['Updated'] or '')
+                    product_id=row["ProductId"],
+                    name=row["Name"] or "",
+                    sku=row["Sku"] or "",
+                    category=row["Category"] or "",
+                    manufacturer_id=row["ManufacturerId"] or 0,
+                    manufacturer_name=row["ManufacturerName"]
+                    or "Unknown",  # Now from Manufacturers table
+                    current_price=float(row["CurrentPrice"] or 0),
+                    is_enabled=bool(row["IsEnabled"]),
+                    is_eol=bool(row["IsEol"]),
+                    is_in_stock=bool(row["IsInStock"]),
+                    search_text=row["SearchText"] or "",
+                    short_description=row["ShortDescription"] or "",
+                    description=row["Description"] or "",
+                    popularity=float(row["Popularity"] or 0),
+                    created=str(row["Created"] or ""),
+                    updated=str(row["Updated"] or ""),
                 )
                 products.append(product)
 
-            logger.info(f"Retrieved {len(products)} products with manufacturer information")
+            logger.info(
+                f"Retrieved {len(products)} products with manufacturer information"
+            )
             return products
 
         except Error as e:
@@ -221,7 +230,9 @@ class DatabaseConnector:
         finally:
             cursor.close()
 
-    def get_products_by_category(self, category: str, enabled_only: bool = True) -> List[Product]:
+    def get_products_by_category(
+        self, category: str, enabled_only: bool = True
+    ) -> List[Product]:
         """
         Get products by category with CORRECT manufacturer information
 
@@ -236,7 +247,9 @@ class DatabaseConnector:
         cursor = self.connection.cursor(dictionary=True)
 
         try:
-            where_clause = "WHERE p.Category = %s AND p.Name IS NOT NULL AND p.Name != ''"
+            where_clause = (
+                "WHERE p.Category = %s AND p.Name IS NOT NULL AND p.Name != ''"
+            )
             params = [category]
 
             if enabled_only:
@@ -269,22 +282,22 @@ class DatabaseConnector:
             products = []
             for row in results:
                 product = Product(
-                    product_id=row['ProductId'],
-                    name=row['Name'] or '',
-                    sku=row['Sku'] or '',
-                    category=row['Category'] or '',
-                    manufacturer_id=row['ManufacturerId'] or 0,
-                    manufacturer_name=row['ManufacturerName'] or 'Unknown',
-                    current_price=float(row['CurrentPrice'] or 0),
-                    is_enabled=bool(row['IsEnabled']),
-                    is_eol=bool(row['IsEol']),
-                    is_in_stock=bool(row['IsInStock']),
-                    search_text=row['SearchText'] or '',
-                    short_description=row['ShortDescription'] or '',
-                    description='',  # Not needed for category view
-                    popularity=float(row['Popularity'] or 0),
-                    created='',
-                    updated=''
+                    product_id=row["ProductId"],
+                    name=row["Name"] or "",
+                    sku=row["Sku"] or "",
+                    category=row["Category"] or "",
+                    manufacturer_id=row["ManufacturerId"] or 0,
+                    manufacturer_name=row["ManufacturerName"] or "Unknown",
+                    current_price=float(row["CurrentPrice"] or 0),
+                    is_enabled=bool(row["IsEnabled"]),
+                    is_eol=bool(row["IsEol"]),
+                    is_in_stock=bool(row["IsInStock"]),
+                    search_text=row["SearchText"] or "",
+                    short_description=row["ShortDescription"] or "",
+                    description="",  # Not needed for category view
+                    popularity=float(row["Popularity"] or 0),
+                    created="",
+                    updated="",
                 )
                 products.append(product)
 
@@ -297,7 +310,9 @@ class DatabaseConnector:
         finally:
             cursor.close()
 
-    def get_products_by_manufacturer(self, manufacturer_name: str, enabled_only: bool = True) -> List[Product]:
+    def get_products_by_manufacturer(
+        self, manufacturer_name: str, enabled_only: bool = True
+    ) -> List[Product]:
         """
         Get products by manufacturer name (FIXED method name and logic)
 
@@ -345,26 +360,28 @@ class DatabaseConnector:
             products = []
             for row in results:
                 product = Product(
-                    product_id=row['ProductId'],
-                    name=row['Name'] or '',
-                    sku=row['Sku'] or '',
-                    category=row['Category'] or '',
-                    manufacturer_id=row['ManufacturerId'] or 0,
-                    manufacturer_name=row['ManufacturerName'] or '',
-                    current_price=float(row['CurrentPrice'] or 0),
-                    is_enabled=bool(row['IsEnabled']),
-                    is_eol=bool(row['IsEol']),
-                    is_in_stock=bool(row['IsInStock']),
-                    search_text=row['SearchText'] or '',
-                    short_description=row['ShortDescription'] or '',
-                    description='',
-                    popularity=float(row['Popularity'] or 0),
-                    created='',
-                    updated=''
+                    product_id=row["ProductId"],
+                    name=row["Name"] or "",
+                    sku=row["Sku"] or "",
+                    category=row["Category"] or "",
+                    manufacturer_id=row["ManufacturerId"] or 0,
+                    manufacturer_name=row["ManufacturerName"] or "",
+                    current_price=float(row["CurrentPrice"] or 0),
+                    is_enabled=bool(row["IsEnabled"]),
+                    is_eol=bool(row["IsEol"]),
+                    is_in_stock=bool(row["IsInStock"]),
+                    search_text=row["SearchText"] or "",
+                    short_description=row["ShortDescription"] or "",
+                    description="",
+                    popularity=float(row["Popularity"] or 0),
+                    created="",
+                    updated="",
                 )
                 products.append(product)
 
-            logger.info(f"Retrieved {len(products)} products from manufacturer '{manufacturer_name}'")
+            logger.info(
+                f"Retrieved {len(products)} products from manufacturer '{manufacturer_name}'"
+            )
             return products
 
         except Error as e:
@@ -422,36 +439,44 @@ class DatabaseConnector:
 
             # Total products
             cursor.execute("SELECT COUNT(*) as total FROM Products")
-            stats['total_products'] = cursor.fetchone()['total']
+            stats["total_products"] = cursor.fetchone()["total"]
 
             # Enabled products
-            cursor.execute("SELECT COUNT(*) as enabled FROM Products WHERE IsEnabled = 1")
-            stats['enabled_products'] = cursor.fetchone()['enabled']
+            cursor.execute(
+                "SELECT COUNT(*) as enabled FROM Products WHERE IsEnabled = 1"
+            )
+            stats["enabled_products"] = cursor.fetchone()["enabled"]
 
             # In stock products
-            cursor.execute("SELECT COUNT(*) as in_stock FROM Products WHERE IsInStock = 1 AND IsEnabled = 1")
-            stats['in_stock_products'] = cursor.fetchone()['in_stock']
+            cursor.execute(
+                "SELECT COUNT(*) as in_stock FROM Products WHERE IsInStock = 1 AND IsEnabled = 1"
+            )
+            stats["in_stock_products"] = cursor.fetchone()["in_stock"]
 
             # Total manufacturers (FIXED)
             cursor.execute("SELECT COUNT(*) as total FROM Manufacturers")
-            stats['total_manufacturers'] = cursor.fetchone()['total']
+            stats["total_manufacturers"] = cursor.fetchone()["total"]
 
             # Active manufacturers (with products)
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(DISTINCT m.Id) as active 
                 FROM Manufacturers m 
                 INNER JOIN Products p ON m.Id = p.ManufacturerId 
                 WHERE p.IsEnabled = 1
-            """)
-            stats['active_manufacturers'] = cursor.fetchone()['active']
+            """
+            )
+            stats["active_manufacturers"] = cursor.fetchone()["active"]
 
             # Categories
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(DISTINCT Category) as categories 
                 FROM Products 
                 WHERE Category IS NOT NULL AND Category != '' AND IsEnabled = 1
-            """)
-            stats['categories'] = cursor.fetchone()['categories']
+            """
+            )
+            stats["categories"] = cursor.fetchone()["categories"]
 
             logger.info(f"Database stats: {stats}")
             return stats
@@ -541,28 +566,31 @@ class DatabaseConnector:
                 LIMIT %s
             """
 
-            cursor.execute(query, [search_pattern, search_pattern, search_pattern, search_pattern, limit])
+            cursor.execute(
+                query,
+                [search_pattern, search_pattern, search_pattern, search_pattern, limit],
+            )
             results = cursor.fetchall()
 
             products = []
             for row in results:
                 product = Product(
-                    product_id=row['ProductId'],
-                    name=row['Name'] or '',
-                    sku=row['Sku'] or '',
-                    category=row['Category'] or '',
-                    manufacturer_id=row['ManufacturerId'] or 0,
-                    manufacturer_name=row['ManufacturerName'] or 'Unknown',
-                    current_price=float(row['CurrentPrice'] or 0),
-                    is_enabled=bool(row['IsEnabled']),
-                    is_eol=bool(row['IsEol']),
-                    is_in_stock=bool(row['IsInStock']),
-                    search_text=row['SearchText'] or '',
-                    short_description=row['ShortDescription'] or '',
-                    description='',
-                    popularity=float(row['Popularity'] or 0),
-                    created='',
-                    updated=''
+                    product_id=row["ProductId"],
+                    name=row["Name"] or "",
+                    sku=row["Sku"] or "",
+                    category=row["Category"] or "",
+                    manufacturer_id=row["ManufacturerId"] or 0,
+                    manufacturer_name=row["ManufacturerName"] or "Unknown",
+                    current_price=float(row["CurrentPrice"] or 0),
+                    is_enabled=bool(row["IsEnabled"]),
+                    is_eol=bool(row["IsEol"]),
+                    is_in_stock=bool(row["IsInStock"]),
+                    search_text=row["SearchText"] or "",
+                    short_description=row["ShortDescription"] or "",
+                    description="",
+                    popularity=float(row["Popularity"] or 0),
+                    created="",
+                    updated="",
                 )
                 products.append(product)
 
@@ -606,29 +634,34 @@ if __name__ == "__main__":
             print(f"  {key}: {value:,}")
 
         # Test manufacturers (instead of brands)
-        print(f"\n🏭 Top 10 Manufacturers:")
+        print("\n🏭 Top 10 Manufacturers:")
         manufacturers = db.get_manufacturer_names()[:10]
         for i, manufacturer in enumerate(manufacturers, 1):
             print(f"  {i}. {manufacturer}")
 
         # Test categories
-        print(f"\n📂 Top 10 Categories:")
+        print("\n📂 Top 10 Categories:")
         categories = db.get_categories()[:10]
         for i, category in enumerate(categories, 1):
             print(f"  {i}. {category}")
 
         # Test search with manufacturer info
-        print(f"\n🔍 Search Test (ASUS):")
+        print("\n🔍 Search Test (ASUS):")
         search_results = db.search_products("ASUS", limit=5)
         for product in search_results:
-            print(f"  - {product.name} ({product.manufacturer_name}) - ${product.current_price}")
+            print(
+                f"  - {product.name} ({product.manufacturer_name}) - ${product.current_price}"
+            )
 
         db.close()
 
         print("\n✅ Fixed Database Connector Test Completed!")
-        print("🚀 Ready to rebuild product intelligence with correct manufacturer data!")
+        print(
+            "🚀 Ready to rebuild product intelligence with correct manufacturer data!"
+        )
 
     except Exception as e:
         print(f"❌ Error testing database: {e}")
         import traceback
+
         traceback.print_exc()

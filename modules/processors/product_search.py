@@ -7,7 +7,7 @@ This is a temporary solution while a dedicated product identification system is 
 import os
 import logging
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 from datetime import datetime
 import mysql.connector
 from mysql.connector import Error
@@ -30,7 +30,7 @@ class ProductSearchPlaceholder:
                 host=os.getenv("BACKEND_DB_HOST"),
                 database=os.getenv("BACKEND_DB_NAME"),
                 user=os.getenv("BACKEND_DB_USER"),
-                password=os.getenv("BACKEND_DB_PASSWORD")
+                password=os.getenv("BACKEND_DB_PASSWORD"),
             )
             logger.info("Product search connected to backend database")
         except Error as e:
@@ -46,49 +46,45 @@ class ProductSearchPlaceholder:
     def _build_brand_patterns(self) -> List[str]:
         """Build regex patterns for common brand recognition"""
         return [
-            r'\bseagate\b',
-            r'\bwestern\s+digital\b',
-            r'\bwd\b',
-            r'\bsamsung\b',
-            r'\btoshiba\b',
-            r'\bhitachi\b',
-            r'\bintel\b',
-            r'\bamd\b',
-            r'\bnvidia\b',
-            r'\basus\b',
-            r'\bmsi\b',
-            r'\bgigabyte\b',
-            r'\bevga\b',
-            r'\bcorsair\b',
-            r'\blogitech\b',
-            r'\brazer\b',
-            r'\bkingston\b',
-            r'\bcrucial\b'
+            r"\bseagate\b",
+            r"\bwestern\s+digital\b",
+            r"\bwd\b",
+            r"\bsamsung\b",
+            r"\btoshiba\b",
+            r"\bhitachi\b",
+            r"\bintel\b",
+            r"\bamd\b",
+            r"\bnvidia\b",
+            r"\basus\b",
+            r"\bmsi\b",
+            r"\bgigabyte\b",
+            r"\bevga\b",
+            r"\bcorsair\b",
+            r"\blogitech\b",
+            r"\brazer\b",
+            r"\bkingston\b",
+            r"\bcrucial\b",
         ]
 
     def _build_model_patterns(self) -> List[str]:
         """Build regex patterns for common model number formats"""
         return [
             # Storage drives
-            r'\bST\d{4,}[A-Z\d]*\b',  # Seagate models (ST20000NM002H)
-            r'\bWD\d{4,}[A-Z\d]*\b',  # WD models
-            r'\b[A-Z]{2,}\d{4,}[A-Z\d]*\b',  # General model patterns
-
+            r"\bST\d{4,}[A-Z\d]*\b",  # Seagate models (ST20000NM002H)
+            r"\bWD\d{4,}[A-Z\d]*\b",  # WD models
+            r"\b[A-Z]{2,}\d{4,}[A-Z\d]*\b",  # General model patterns
             # Graphics cards
-            r'\bGTX\s*\d{4}\s*(Ti|Super)?\b',  # GTX 1080, GTX 1080 Ti
-            r'\bRTX\s*\d{4}\s*(Ti|Super)?\b',  # RTX 4090, RTX 4080 Super
-            r'\bRX\s*\d{4}\s*(XT|X)?\b',  # AMD RX series
-
+            r"\bGTX\s*\d{4}\s*(Ti|Super)?\b",  # GTX 1080, GTX 1080 Ti
+            r"\bRTX\s*\d{4}\s*(Ti|Super)?\b",  # RTX 4090, RTX 4080 Super
+            r"\bRX\s*\d{4}\s*(XT|X)?\b",  # AMD RX series
             # Processors
-            r'\bi[3579]-\d{4,5}[A-Z]*\b',  # Intel processors (i7-12700K)
-            r'\bRyzen\s*\d+\s*\d{4}[A-Z]*\b',  # AMD Ryzen
-
+            r"\bi[3579]-\d{4,5}[A-Z]*\b",  # Intel processors (i7-12700K)
+            r"\bRyzen\s*\d+\s*\d{4}[A-Z]*\b",  # AMD Ryzen
             # Storage capacity indicators
-            r'\b\d{1,3}TB\b',  # Storage sizes
-            r'\b\d{2,4}GB\b',  # Memory/storage sizes
-
+            r"\b\d{1,3}TB\b",  # Storage sizes
+            r"\b\d{2,4}GB\b",  # Memory/storage sizes
             # Memory
-            r'\bDDR[45]-\d{4}\b',  # Memory types
+            r"\bDDR[45]-\d{4}\b",  # Memory types
         ]
 
     def extract_product_identifiers(self, comment: str) -> Dict:
@@ -109,7 +105,7 @@ class ProductSearchPlaceholder:
                 "categories_inferred": [],
                 "search_terms": [],
                 "confidence_score": 0.0,
-                "extraction_timestamp": datetime.now().isoformat()
+                "extraction_timestamp": datetime.now().isoformat(),
             }
 
             comment_lower = comment.lower()
@@ -127,7 +123,7 @@ class ProductSearchPlaceholder:
                     results["models_found"].extend(matches)
 
             # Extract capacity indicators
-            capacity_patterns = [r'\b\d{1,3}TB\b', r'\b\d{2,4}GB\b']
+            capacity_patterns = [r"\b\d{1,3}TB\b", r"\b\d{2,4}GB\b"]
             for pattern in capacity_patterns:
                 matches = re.findall(pattern, comment, re.IGNORECASE)
                 if matches:
@@ -141,7 +137,7 @@ class ProductSearchPlaceholder:
                 "Processor": ["processor", "cpu", "intel", "amd", "ryzen"],
                 "Memory": ["memory", "ram", "ddr"],
                 "Motherboard": ["motherboard", "mobo"],
-                "Power Supply": ["power supply", "psu"]
+                "Power Supply": ["power supply", "psu"],
             }
 
             for category, keywords in category_keywords.items():
@@ -166,8 +162,10 @@ class ProductSearchPlaceholder:
 
             results["confidence_score"] = min(confidence, 1.0)
 
-            logger.info(f"Extracted product identifiers: {len(results['search_terms'])} terms, "
-                        f"confidence: {confidence:.2f}")
+            logger.info(
+                f"Extracted product identifiers: {len(results['search_terms'])} terms, "
+                f"confidence: {confidence:.2f}"
+            )
 
             return results
 
@@ -181,10 +179,12 @@ class ProductSearchPlaceholder:
                 "search_terms": [],
                 "confidence_score": 0.0,
                 "error": str(e),
-                "extraction_timestamp": datetime.now().isoformat()
+                "extraction_timestamp": datetime.now().isoformat(),
             }
 
-    def search_products_by_identifiers(self, identifiers: Dict, max_results: int = 5) -> List[Dict]:
+    def search_products_by_identifiers(
+        self, identifiers: Dict, max_results: int = 5
+    ) -> List[Dict]:
         """
         Search backend database for products matching extracted identifiers
 
@@ -214,7 +214,9 @@ class ProductSearchPlaceholder:
             search_conditions = []
             search_params = []
 
-            for term in search_terms[:3]:  # Limit to first 3 terms to avoid overly complex queries
+            for term in search_terms[
+                :3
+            ]:  # Limit to first 3 terms to avoid overly complex queries
                 # Search in Name, Sku, Description
                 condition = "(p.Name LIKE %s OR p.Sku LIKE %s OR p.Description LIKE %s)"
                 search_conditions.append(condition)
@@ -261,14 +263,18 @@ class ProductSearchPlaceholder:
                     "sku": result.get("Sku"),
                     "brand": result.get("BrandName"),
                     "category": result.get("Category"),
-                    "current_price": float(result.get("CurrentPrice", 0)) if result.get("CurrentPrice") else None,
+                    "current_price": (
+                        float(result.get("CurrentPrice", 0))
+                        if result.get("CurrentPrice")
+                        else None
+                    ),
                     "is_in_stock": bool(result.get("IsInStock", 0)),
                     "is_enabled": bool(result.get("IsEnabled", 0)),
                     "is_eol": bool(result.get("IsEol", 0)),
                     "lead_time": result.get("LeadTime"),
                     "short_description": result.get("ShortDescription"),
                     "relevance_score": relevance_score,
-                    "search_timestamp": datetime.now().isoformat()
+                    "search_timestamp": datetime.now().isoformat(),
                 }
                 formatted_results.append(formatted_result)
 
@@ -285,7 +291,7 @@ class ProductSearchPlaceholder:
             logger.error(f"Error searching products by identifiers: {e}")
             return []
         finally:
-            if 'cursor' in locals():
+            if "cursor" in locals():
                 cursor.close()
 
     def _calculate_relevance_score(self, product: Dict, identifiers: Dict) -> float:
@@ -352,11 +358,16 @@ class ProductSearchPlaceholder:
 
             # Step 2: Search for products if we have good identifiers
             products_found = []
-            if identifiers.get("confidence_score", 0) > 0.2:  # Minimum confidence threshold
-                products_found = self.search_products_by_identifiers(identifiers, max_results)
+            if (
+                identifiers.get("confidence_score", 0) > 0.2
+            ):  # Minimum confidence threshold
+                products_found = self.search_products_by_identifiers(
+                    identifiers, max_results
+                )
             else:
                 logger.info(
-                    f"Confidence score too low ({identifiers.get('confidence_score', 0):.2f}) - skipping database search")
+                    f"Confidence score too low ({identifiers.get('confidence_score', 0):.2f}) - skipping database search"
+                )
 
             return {
                 "comment_analyzed": comment,
@@ -368,10 +379,10 @@ class ProductSearchPlaceholder:
                     "extraction_confidence": identifiers.get("confidence_score", 0),
                     "products_found_count": len(products_found),
                     "search_terms_used": identifiers.get("search_terms", []),
-                    "categories_inferred": identifiers.get("categories_inferred", [])
+                    "categories_inferred": identifiers.get("categories_inferred", []),
                 },
                 "search_timestamp": datetime.now().isoformat(),
-                "note": "This is a placeholder product search implementation"
+                "note": "This is a placeholder product search implementation",
             }
 
         except Exception as e:
@@ -381,7 +392,7 @@ class ProductSearchPlaceholder:
                 "search_successful": False,
                 "error": str(e),
                 "search_timestamp": datetime.now().isoformat(),
-                "note": "Product search failed - placeholder implementation"
+                "note": "Product search failed - placeholder implementation",
             }
 
     def close(self):
@@ -435,7 +446,7 @@ def search_comment_for_products(comment: str, max_results: int = 3) -> Dict:
             "search_successful": False,
             "error": f"Convenience function error: {str(e)}",
             "search_timestamp": datetime.now().isoformat(),
-            "note": "Product search convenience function failed"
+            "note": "Product search convenience function failed",
         }
 
 
@@ -455,7 +466,9 @@ def extract_product_identifiers_from_comment(comment: str) -> Dict:
         search_engine = get_product_search()
         return search_engine.extract_product_identifiers(comment)
     except Exception as e:
-        logger.error(f"Error in convenience function extract_product_identifiers_from_comment: {e}")
+        logger.error(
+            f"Error in convenience function extract_product_identifiers_from_comment: {e}"
+        )
         return {
             "brands_found": [],
             "models_found": [],
@@ -464,7 +477,7 @@ def extract_product_identifiers_from_comment(comment: str) -> Dict:
             "search_terms": [],
             "confidence_score": 0.0,
             "error": f"Convenience function error: {str(e)}",
-            "extraction_timestamp": datetime.now().isoformat()
+            "extraction_timestamp": datetime.now().isoformat(),
         }
 
 
@@ -495,7 +508,7 @@ def test_product_search(test_comment: str = "I need a Seagate 4TB hard drive") -
             "extraction_confidence": extraction_results.get("confidence_score", 0),
             "products_found": len(search_results.get("products_found", [])),
             "best_match": search_results.get("best_match"),
-            "test_timestamp": datetime.now().isoformat()
+            "test_timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
@@ -504,5 +517,5 @@ def test_product_search(test_comment: str = "I need a Seagate 4TB hard drive") -
             "test_successful": False,
             "test_comment": test_comment,
             "error": str(e),
-            "test_timestamp": datetime.now().isoformat()
+            "test_timestamp": datetime.now().isoformat(),
         }

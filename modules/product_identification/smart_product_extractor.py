@@ -6,7 +6,7 @@ Uses learned category patterns for better product matching
 import re
 import logging
 import time
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 from dataclasses import dataclass
 
 from embedding_service import EmbeddingService
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SmartProductMatch:
     """Enhanced product match with category intelligence"""
+
     product_id: int
     name: str
     brand: str
@@ -35,6 +36,7 @@ class SmartProductMatch:
 @dataclass
 class SmartExtractionResult:
     """Enhanced extraction result"""
+
     products: List[SmartProductMatch]
     extraction_method: str
     query_processed: str
@@ -59,11 +61,15 @@ class SmartProductExtractor:
         # Load category intelligence
         self.category_intelligence = CategoryIntelligenceManager.load_intelligence()
         if not self.category_intelligence:
-            logger.warning("⚠️ No category intelligence found. Run category_intelligence.py first!")
+            logger.warning(
+                "⚠️ No category intelligence found. Run category_intelligence.py first!"
+            )
             self.category_detector = None
         else:
             self.category_detector = CategoryDetector(self.category_intelligence)
-            logger.info(f"✅ Loaded intelligence for {len(self.category_intelligence)} categories")
+            logger.info(
+                f"✅ Loaded intelligence for {len(self.category_intelligence)} categories"
+            )
 
         # Load embedding cache
         self.embedding_service.load_embeddings_cache()
@@ -73,7 +79,9 @@ class SmartProductExtractor:
             logger.error("❌ Failed to connect to Pinecone")
             raise Exception("Pinecone connection failed")
 
-    def extract_products_smart(self, comment: str, max_products: int = 5) -> SmartExtractionResult:
+    def extract_products_smart(
+        self, comment: str, max_products: int = 5
+    ) -> SmartExtractionResult:
         """
         Extract products using category intelligence
 
@@ -96,7 +104,9 @@ class SmartProductExtractor:
         category_searches = {}
 
         if self.category_detector:
-            detected_categories = self.category_detector.detect_categories(processed_comment)
+            detected_categories = self.category_detector.detect_categories(
+                processed_comment
+            )
             logger.info(f"📂 Detected categories: {detected_categories}")
 
         # Generate embedding for the comment
@@ -113,13 +123,17 @@ class SmartProductExtractor:
             all_matches = self._category_aware_search(
                 comment_embedding, detected_categories, max_products * 2
             )
-            category_searches = {cat: len([m for m in all_matches if m.category == cat])
-                                 for cat in detected_categories.keys()}
+            category_searches = {
+                cat: len([m for m in all_matches if m.category == cat])
+                for cat in detected_categories.keys()
+            }
             extraction_method = "category_aware"
         else:
             # Fallback to global search
             logger.info("🌍 No categories detected, using global search")
-            all_matches = self._global_search_with_scoring(comment_embedding, max_products * 2)
+            all_matches = self._global_search_with_scoring(
+                comment_embedding, max_products * 2
+            )
             extraction_method = "global_fallback"
 
         # Re-rank results using category confidence
@@ -133,7 +147,9 @@ class SmartProductExtractor:
         # Calculate processing time
         processing_time = time.time() - start_time
 
-        logger.info(f"✅ Smart extraction completed: {len(final_matches)} products in {processing_time:.2f}s")
+        logger.info(
+            f"✅ Smart extraction completed: {len(final_matches)} products in {processing_time:.2f}s"
+        )
 
         return SmartExtractionResult(
             products=final_matches,
@@ -142,12 +158,15 @@ class SmartProductExtractor:
             detected_categories=detected_categories,
             category_searches=category_searches,
             total_matches=len(all_matches),
-            processing_time=processing_time
+            processing_time=processing_time,
         )
 
-    def _category_aware_search(self, embedding: List[float],
-                               detected_categories: Dict[str, float],
-                               max_results: int) -> List[SmartProductMatch]:
+    def _category_aware_search(
+        self,
+        embedding: List[float],
+        detected_categories: Dict[str, float],
+        max_results: int,
+    ) -> List[SmartProductMatch]:
         """Search with category awareness"""
 
         all_matches = []
@@ -158,69 +177,75 @@ class SmartProductExtractor:
             category_weight = category_confidence
             category_results = max(2, int(max_results * category_weight))
 
-            logger.info(f"🔍 Searching {category} (conf: {category_confidence:.2f}, results: {category_results})")
+            logger.info(
+                f"🔍 Searching {category} (conf: {category_confidence:.2f}, results: {category_results})"
+            )
 
             # Search with category filter
             search_results = self.pinecone_manager.search_products_with_filters(
                 query_embedding=embedding,
                 category=category,
                 enabled_only=True,
-                top_k=category_results
+                top_k=category_results,
             )
 
             # Convert to SmartProductMatch objects
             for result in search_results:
-                metadata = result['metadata']
+                metadata = result["metadata"]
 
                 match = SmartProductMatch(
-                    product_id=result['product_id'],
-                    name=metadata.get('name', ''),
-                    brand=metadata.get('brand', ''),
-                    category=metadata.get('category', ''),
-                    confidence=result['confidence'],
+                    product_id=result["product_id"],
+                    name=metadata.get("name", ""),
+                    brand=metadata.get("brand", ""),
+                    category=metadata.get("category", ""),
+                    confidence=result["confidence"],
                     category_confidence=category_confidence,
                     match_reason=f"category_aware_{category.lower().replace(' ', '_')}",
                     metadata=metadata,
-                    sku=metadata.get('sku'),
-                    price_range=metadata.get('price_range')
+                    sku=metadata.get("sku"),
+                    price_range=metadata.get("price_range"),
                 )
 
                 all_matches.append(match)
 
         return all_matches
 
-    def _global_search_with_scoring(self, embedding: List[float], max_results: int) -> List[SmartProductMatch]:
+    def _global_search_with_scoring(
+        self, embedding: List[float], max_results: int
+    ) -> List[SmartProductMatch]:
         """Global search with enhanced scoring"""
 
         search_results = self.pinecone_manager.search_products(
-            query_embedding=embedding,
-            top_k=max_results
+            query_embedding=embedding, top_k=max_results
         )
 
         matches = []
         for result in search_results:
-            metadata = result['metadata']
+            metadata = result["metadata"]
 
             match = SmartProductMatch(
-                product_id=result['product_id'],
-                name=metadata.get('name', ''),
-                brand=metadata.get('brand', ''),
-                category=metadata.get('category', ''),
-                confidence=result['confidence'],
+                product_id=result["product_id"],
+                name=metadata.get("name", ""),
+                brand=metadata.get("brand", ""),
+                category=metadata.get("category", ""),
+                confidence=result["confidence"],
                 category_confidence=0.5,  # Neutral category confidence
                 match_reason="global_search",
                 metadata=metadata,
-                sku=metadata.get('sku'),
-                price_range=metadata.get('price_range')
+                sku=metadata.get("sku"),
+                price_range=metadata.get("price_range"),
             )
 
             matches.append(match)
 
         return matches
 
-    def _rerank_with_category_intelligence(self, matches: List[SmartProductMatch],
-                                           detected_categories: Dict[str, float],
-                                           query: str) -> List[SmartProductMatch]:
+    def _rerank_with_category_intelligence(
+        self,
+        matches: List[SmartProductMatch],
+        detected_categories: Dict[str, float],
+        query: str,
+    ) -> List[SmartProductMatch]:
         """Re-rank results using category intelligence and query analysis"""
 
         if not detected_categories:
@@ -235,7 +260,7 @@ class SmartProductExtractor:
             # Boost if category matches detected categories
             if match.category in detected_categories:
                 category_boost = detected_categories[match.category]
-                enhanced_score *= (1.0 + category_boost)
+                enhanced_score *= 1.0 + category_boost
                 match.match_reason += f"_category_boost_{category_boost:.2f}"
 
             # Apply query-specific boosts
@@ -272,8 +297,8 @@ class SmartProductExtractor:
         """Check if query contains exact model numbers found in product name"""
 
         # Extract potential model numbers from query
-        query_models = re.findall(r'\b[a-zA-Z]*\d{3,}[a-zA-Z0-9]*\b', query)
-        product_models = re.findall(r'\b[a-zA-Z]*\d{3,}[a-zA-Z0-9]*\b', product_name)
+        query_models = re.findall(r"\b[a-zA-Z]*\d{3,}[a-zA-Z0-9]*\b", query)
+        product_models = re.findall(r"\b[a-zA-Z]*\d{3,}[a-zA-Z0-9]*\b", product_name)
 
         # Check for exact matches
         for query_model in query_models:
@@ -287,8 +312,17 @@ class SmartProductExtractor:
         """Check if technical terms align between query and product"""
 
         tech_terms = [
-            'gaming', 'professional', 'workstation', 'rgb', 'wireless',
-            'mechanical', 'optical', '4k', '1440p', '144hz', '240hz'
+            "gaming",
+            "professional",
+            "workstation",
+            "rgb",
+            "wireless",
+            "mechanical",
+            "optical",
+            "4k",
+            "1440p",
+            "144hz",
+            "240hz",
         ]
 
         query_terms = set(term for term in tech_terms if term in query)
@@ -306,7 +340,7 @@ class SmartProductExtractor:
             detected_categories={},
             category_searches={},
             total_matches=0,
-            processing_time=0.0
+            processing_time=0.0,
         )
 
     def get_category_suggestions(self, query: str) -> Dict[str, float]:
@@ -331,7 +365,7 @@ def test_smart_extractor():
         "AMD Ryzen processor",
         "gaming keyboard",
         "32GB DDR4",
-        "1TB NVMe SSD"
+        "1TB NVMe SSD",
     ]
 
     print("🧪 Testing Smart Product Extractor")

@@ -6,11 +6,12 @@ Handles vector embeddings and similarity search using Pinecone and OpenAI.
 import os
 import logging
 import pandas as pd
-from typing import Dict, List, Optional
+from typing import Dict, List
 from openai import OpenAI
 from pinecone import Pinecone
 
 logger = logging.getLogger(__name__)
+
 
 class PineconeClient:
     def __init__(self):
@@ -32,7 +33,7 @@ class PineconeClient:
             # Initialize Pinecone client
             self.pinecone_client = Pinecone(
                 api_key=os.getenv("PINECONE_API_KEY"),
-                environment=os.getenv("PINECONE_ENV")
+                environment=os.getenv("PINECONE_ENV"),
             )
 
             # Get the index
@@ -49,11 +50,17 @@ class PineconeClient:
         try:
             # Try to load the CSV file you generate in your scripts
             df = pd.read_csv("labeled_full_replies.csv", encoding="utf-8-sig")
-            self.labeled_replies_lookup = df.set_index("id")[["customer_comment", "full_reply_text"]].to_dict("index")
-            logger.info(f"Loaded {len(self.labeled_replies_lookup)} labeled replies for lookup")
+            self.labeled_replies_lookup = df.set_index("id")[
+                ["customer_comment", "full_reply_text"]
+            ].to_dict("index")
+            logger.info(
+                f"Loaded {len(self.labeled_replies_lookup)} labeled replies for lookup"
+            )
 
         except FileNotFoundError:
-            logger.warning("labeled_full_replies.csv not found - Pinecone responses will have limited context")
+            logger.warning(
+                "labeled_full_replies.csv not found - Pinecone responses will have limited context"
+            )
             self.labeled_replies_lookup = {}
         except Exception as e:
             logger.error(f"Error loading labeled replies: {e}")
@@ -73,8 +80,7 @@ class PineconeClient:
             logger.info(f"Generating embedding for text: {text[:100]}...")
 
             response = self.openai_client.embeddings.create(
-                model="text-embedding-3-large",
-                input=text
+                model="text-embedding-3-large", input=text
             )
 
             vector = response.data[0].embedding
@@ -105,20 +111,20 @@ class PineconeClient:
 
             # Query Pinecone
             result = self.pinecone_index.query(
-                vector=vector,
-                top_k=top_k,
-                include_metadata=True
+                vector=vector, top_k=top_k, include_metadata=True
             )
 
-            logger.info(f"Pinecone query completed. Found {len(result.matches)} matches")
+            logger.info(
+                f"Pinecone query completed. Found {len(result.matches)} matches"
+            )
 
             # Format results
             matches = []
             for match in result.matches:
                 match_data = {
-                    'id': match.id,
-                    'score': float(match.score),  # Ensure JSON serializable
-                    'metadata': match.metadata or {}
+                    "id": match.id,
+                    "score": float(match.score),  # Ensure JSON serializable
+                    "metadata": match.metadata or {},
                 }
                 matches.append(match_data)
                 logger.info(f"Match ID: {match.id}, Score: {match.score:.4f}")
@@ -128,6 +134,7 @@ class PineconeClient:
         except Exception as e:
             logger.error(f"Pinecone search error: {e}")
             import traceback
+
             logger.error(f"Full traceback: {traceback.format_exc()}")
             return []
 
@@ -149,32 +156,42 @@ class PineconeClient:
             # Build response examples with full context
             response_examples = []
             for match in similar_responses:
-                rec_id = int(match['id'])
+                rec_id = int(match["id"])
                 if rec_id in self.labeled_replies_lookup:
                     # Safely get the data and handle NaN values
-                    original_comment = self.labeled_replies_lookup[rec_id].get('customer_comment', '')
-                    original_reply = self.labeled_replies_lookup[rec_id].get('full_reply_text', '')
+                    original_comment = self.labeled_replies_lookup[rec_id].get(
+                        "customer_comment", ""
+                    )
+                    original_reply = self.labeled_replies_lookup[rec_id].get(
+                        "full_reply_text", ""
+                    )
 
                     # Handle NaN values (which show up as floats)
                     if not isinstance(original_comment, str):
-                        original_comment = str(original_comment) if original_comment else ''
+                        original_comment = (
+                            str(original_comment) if original_comment else ""
+                        )
                     if not isinstance(original_reply, str):
-                        original_reply = str(original_reply) if original_reply else ''
+                        original_reply = str(original_reply) if original_reply else ""
 
                     # Skip if both comment and reply are empty/invalid
                     if not original_comment.strip() and not original_reply.strip():
-                        logger.warning(f"Skipping record {rec_id} - both comment and reply are empty")
+                        logger.warning(
+                            f"Skipping record {rec_id} - both comment and reply are empty"
+                        )
                         continue
 
                     example = {
-                        'similarity_score': match['score'],
-                        'original_comment': original_comment,
-                        'original_reply': original_reply,
-                        'metadata': match.get('metadata', {}),
-                        'record_id': rec_id
+                        "similarity_score": match["score"],
+                        "original_comment": original_comment,
+                        "original_reply": original_reply,
+                        "metadata": match.get("metadata", {}),
+                        "record_id": rec_id,
                     }
                     response_examples.append(example)
-                    logger.info(f"Added response example from record {rec_id} with similarity {match['score']:.3f}")
+                    logger.info(
+                        f"Added response example from record {rec_id} with similarity {match['score']:.3f}"
+                    )
 
             logger.info(f"Generated {len(response_examples)} response examples")
             return response_examples
@@ -207,7 +224,7 @@ class PineconeClient:
                 "top_matches": similar_responses,
                 "response_examples": response_examples,
                 "has_labeled_context": len(response_examples) > 0,
-                "labeled_replies_available": len(self.labeled_replies_lookup) > 0
+                "labeled_replies_available": len(self.labeled_replies_lookup) > 0,
             }
 
         except Exception as e:
@@ -219,7 +236,7 @@ class PineconeClient:
                 "response_examples": [],
                 "has_labeled_context": False,
                 "labeled_replies_available": len(self.labeled_replies_lookup) > 0,
-                "error": str(e)
+                "error": str(e),
             }
 
     def test_connection(self) -> Dict:
@@ -233,7 +250,7 @@ class PineconeClient:
             "openai_connected": False,
             "pinecone_connected": False,
             "index_accessible": False,
-            "labeled_replies_loaded": len(self.labeled_replies_lookup) > 0
+            "labeled_replies_loaded": len(self.labeled_replies_lookup) > 0,
         }
 
         # Test OpenAI
@@ -246,10 +263,10 @@ class PineconeClient:
 
         # Test Pinecone
         try:
-            test_result = self.pinecone_index.query(
+            self.pinecone_index.query(
                 vector=[0.0] * 3072,  # Dummy vector for text-embedding-3-large
                 top_k=1,
-                include_metadata=True
+                include_metadata=True,
             )
             status["pinecone_connected"] = True
             status["index_accessible"] = True
@@ -262,6 +279,7 @@ class PineconeClient:
 
 # Global client instance (lazy-loaded)
 _pinecone_client_instance = None
+
 
 def get_pinecone_client() -> PineconeClient:
     """
