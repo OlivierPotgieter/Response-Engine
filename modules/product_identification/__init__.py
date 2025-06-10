@@ -51,26 +51,25 @@ def search_comment_for_products(comment: str, max_results: int = 3) -> dict:
                 }
             )
 
+        confidence_score = (
+            max(result.detected_categories.values())
+            if result.detected_categories
+            else (products_found[0]["relevance_score"] if products_found else 0)
+        )
+        
         return {
             "comment_analyzed": comment,
             "identifiers_extracted": {
                 "search_terms": list(result.detected_categories.keys()),
-                "confidence_score": (
-                    max(result.detected_categories.values())
-                    if result.detected_categories
-                    else 0
-                ),
+                "confidence_score": confidence_score,
                 "categories_inferred": list(result.detected_categories.keys()),
             },
             "products_found": products_found,
             "search_successful": len(products_found) > 0,
             "best_match": products_found[0] if products_found else None,
+            "confidence": confidence_score,
             "search_summary": {
-                "extraction_confidence": (
-                    max(result.detected_categories.values())
-                    if result.detected_categories
-                    else 0
-                ),
+                "extraction_confidence": confidence_score,
                 "products_found_count": len(products_found),
                 "search_terms_used": list(result.detected_categories.keys()),
                 "categories_inferred": list(result.detected_categories.keys()),
