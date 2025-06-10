@@ -982,7 +982,7 @@ class LLMGenerator:
                         [
                             "🛡️ WARRANTY INFORMATION:",
                             "• Warranty details available - check product specifications",
-                            "• Contact manufacturer for specific warranty terms",
+                            "• Wootware handles warranty claims - we'll assist with the process",
                             "",
                         ]
                     )
