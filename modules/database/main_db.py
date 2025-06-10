@@ -27,7 +27,7 @@ class MainDatabase:
                 host=os.getenv("DB_HOST"),
                 database=os.getenv("DB_NAME"),
                 user=os.getenv("DB_USER"),
-                password=os.getenv("DB_PASSWORD")
+                password=os.getenv("DB_PASSWORD"),
             )
             logger.info("Main database connection established")
 
@@ -68,25 +68,27 @@ class MainDatabase:
             if not result:
                 return {
                     "error": f"Request ID {request_id} not found in database",
-                    "status": "not_found"
+                    "status": "not_found",
                 }
 
             # Check if automated_response is not 0 (outside scope warning)
             scope_warning = None
-            if result.get('automated_response', 0) != 0:
+            if result.get("automated_response", 0) != 0:
                 scope_warning = "WARNING: This query type is outside of scope (automated_response != 0)"
 
             # Log what data was received vs missing for key fields
             key_fields = [
-                'customer_comment', 'product_id', 'product_name', 'parent_leadtime',
-                'alternative_id', 'alternative_name', 'alternative_leadtime', 'woot_rep'
+                "customer_comment",
+                "product_id",
+                "product_name",
+                "parent_leadtime",
+                "alternative_id",
+                "alternative_name",
+                "alternative_leadtime",
+                "woot_rep",
             ]
 
-            data_log = {
-                "received_fields": [],
-                "missing_fields": [],
-                "null_fields": []
-            }
+            data_log = {"received_fields": [], "missing_fields": [], "null_fields": []}
 
             for field in key_fields:
                 value = result.get(field)
@@ -97,24 +99,23 @@ class MainDatabase:
                 else:
                     data_log["null_fields"].append(field)
 
-            logger.info(f"Data retrieval for ID {request_id}: "
-                        f"Received: {data_log['received_fields']}, "
-                        f"Missing: {data_log['missing_fields']}, "
-                        f"Null: {data_log['null_fields']}")
+            logger.info(
+                f"Data retrieval for ID {request_id}: "
+                f"Received: {data_log['received_fields']}, "
+                f"Missing: {data_log['missing_fields']}, "
+                f"Null: {data_log['null_fields']}"
+            )
 
             return {
                 "status": "success",
                 "data": result,
                 "data_log": data_log,
-                "scope_warning": scope_warning
+                "scope_warning": scope_warning,
             }
 
         except Error as e:
             logger.error(f"Database query error for ID {request_id}: {e}")
-            return {
-                "error": f"Database error: {str(e)}",
-                "status": "database_error"
-            }
+            return {"error": f"Database error: {str(e)}", "status": "database_error"}
         finally:
             cursor.close()
 
@@ -146,26 +147,28 @@ class MainDatabase:
                 return None
 
             # Clean HTML from the body using BeautifulSoup
-            raw_body = result.get('body', '')
+            raw_body = result.get("body", "")
             if raw_body:
-                soup = BeautifulSoup(raw_body, 'html.parser')
-                cleaned_body = soup.get_text(separator=' ', strip=True)
+                soup = BeautifulSoup(raw_body, "html.parser")
+                cleaned_body = soup.get_text(separator=" ", strip=True)
 
-                logger.info(f"Found custom body for ID {request_id}, length: {len(cleaned_body)}")
+                logger.info(
+                    f"Found custom body for ID {request_id}, length: {len(cleaned_body)}"
+                )
 
                 return {
-                    "id": result['id'],
+                    "id": result["id"],
                     "raw_html_body": raw_body,
                     "cleaned_text_body": cleaned_body,
-                    "body_length": len(cleaned_body)
+                    "body_length": len(cleaned_body),
                 }
             else:
                 logger.info(f"Custom body exists for ID {request_id} but is empty")
                 return {
-                    "id": result['id'],
+                    "id": result["id"],
                     "raw_html_body": "",
                     "cleaned_text_body": "",
-                    "body_length": 0
+                    "body_length": 0,
                 }
 
         except Error as e:
@@ -185,14 +188,14 @@ class MainDatabase:
             Dict with organized key fields
         """
         return {
-            "customer_comment": customer_data.get('customer_comment'),
-            "product_id": customer_data.get('product_id'),
-            "product_name": customer_data.get('product_name'),
-            "parent_leadtime": customer_data.get('parent_leadtime'),
-            "alternative_id": customer_data.get('alternative_id'),
-            "alternative_name": customer_data.get('alternative_name'),
-            "alternative_leadtime": customer_data.get('alternative_leadtime'),
-            "woot_rep": customer_data.get('woot_rep')
+            "customer_comment": customer_data.get("customer_comment"),
+            "product_id": customer_data.get("product_id"),
+            "product_name": customer_data.get("product_name"),
+            "parent_leadtime": customer_data.get("parent_leadtime"),
+            "alternative_id": customer_data.get("alternative_id"),
+            "alternative_name": customer_data.get("alternative_name"),
+            "alternative_leadtime": customer_data.get("alternative_leadtime"),
+            "woot_rep": customer_data.get("woot_rep"),
         }
 
     def close(self):

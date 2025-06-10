@@ -6,12 +6,13 @@ Handles response generation using OpenAI's language models with smart prompt eng
 import os
 import logging
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List
 from openai import OpenAI
 from datetime import datetime
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
+
 
 class LLMGenerator:
     def __init__(self, model: str = "gpt-4o", temperature: float = 0.3):
@@ -31,7 +32,9 @@ class LLMGenerator:
         """Initialize OpenAI client"""
         try:
             self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-            logger.info(f"Enhanced LLM generator with product viability logic initialized with model: {self.model}")
+            logger.info(
+                f"Enhanced LLM generator with product viability logic initialized with model: {self.model}"
+            )
         except Exception as e:
             logger.error(f"Error initializing OpenAI client: {e}")
             raise
@@ -56,15 +59,15 @@ class LLMGenerator:
 
         # Remove common ending patterns that might conflict
         ending_patterns = [
-            r'\n\nKind [Rr]egards,?.*?$',
-            r'\n\nBest [Rr]egards,?.*?$',
-            r'\n\nSincerely,?.*?$',
-            r'\n\nCheers,?.*?$',
-            r'\n\nThank you,?.*?$'
+            r"\n\nKind [Rr]egards,?.*?$",
+            r"\n\nBest [Rr]egards,?.*?$",
+            r"\n\nSincerely,?.*?$",
+            r"\n\nCheers,?.*?$",
+            r"\n\nThank you,?.*?$",
         ]
 
         for pattern in ending_patterns:
-            cleaned_response = re.sub(pattern, '', cleaned_response, flags=re.DOTALL)
+            cleaned_response = re.sub(pattern, "", cleaned_response, flags=re.DOTALL)
 
         # Append the rep's signature
         return f"{cleaned_response.strip()}\n\nKind Regards,\n{woot_rep}"
@@ -88,46 +91,63 @@ class LLMGenerator:
             "alternative_recommended": False,
             "eol_warning_needed": False,
             "primary_product": None,
-            "secondary_product": None
+            "secondary_product": None,
         }
 
         # Get product selection info
-        product_selection = context.get('product_selection', {})
-        real_time_data = context.get('real_time_data', {})
+        product_selection = context.get("product_selection", {})
+        real_time_data = context.get("real_time_data", {})
 
-        primary_product_data = real_time_data.get('primary_product', {})
-        secondary_product_data = real_time_data.get('secondary_product', {})
+        primary_product_data = real_time_data.get("primary_product", {})
+        secondary_product_data = real_time_data.get("secondary_product", {})
 
         # Analyze primary product
         if primary_product_data:
             analysis["primary_product"] = primary_product_data
-            analysis["primary_product_viable"] = primary_product_data.get('is_viable', False)
+            analysis["primary_product_viable"] = primary_product_data.get(
+                "is_viable", False
+            )
             analysis["has_viable_product"] = analysis["primary_product_viable"]
 
             if analysis["primary_product_viable"]:
-                analysis["should_provide_pricing"] = bool(primary_product_data.get('pricing'))
-                analysis["should_provide_stock"] = bool(primary_product_data.get('stock'))
+                analysis["should_provide_pricing"] = bool(
+                    primary_product_data.get("pricing")
+                )
+                analysis["should_provide_stock"] = bool(
+                    primary_product_data.get("stock")
+                )
 
         # Analyze secondary product
         if secondary_product_data:
             analysis["secondary_product"] = secondary_product_data
-            analysis["secondary_product_viable"] = secondary_product_data.get('is_viable', False)
+            analysis["secondary_product_viable"] = secondary_product_data.get(
+                "is_viable", False
+            )
 
         # Check if alternative was recommended
-        analysis["alternative_recommended"] = product_selection.get('has_alternative_recommendation', False)
+        analysis["alternative_recommended"] = product_selection.get(
+            "has_alternative_recommendation", False
+        )
 
         # Check if we need EOL warning
-        selection_reason = product_selection.get('selection_reason', '')
-        if 'not viable' in selection_reason.lower() or 'eol' in selection_reason.lower():
+        selection_reason = product_selection.get("selection_reason", "")
+        if (
+            "not viable" in selection_reason.lower()
+            or "eol" in selection_reason.lower()
+        ):
             analysis["eol_warning_needed"] = True
 
-        logger.info(f"Product viability analysis: viable={analysis['has_viable_product']}, "
-                   f"pricing={analysis['should_provide_pricing']}, stock={analysis['should_provide_stock']}, "
-                   f"alt_rec={analysis['alternative_recommended']}, eol_warn={analysis['eol_warning_needed']}")
+        logger.info(
+            f"Product viability analysis: viable={analysis['has_viable_product']}, "
+            f"pricing={analysis['should_provide_pricing']}, stock={analysis['should_provide_stock']}, "
+            f"alt_rec={analysis['alternative_recommended']}, eol_warn={analysis['eol_warning_needed']}"
+        )
 
         return analysis
 
-    def _build_pricing_prompt_with_viability(self, customer_comment: str, context: Dict) -> str:
+    def _build_pricing_prompt_with_viability(
+        self, customer_comment: str, context: Dict
+    ) -> str:
         """
         Build specialized prompt for pricing-related queries with product viability logic
 
@@ -146,27 +166,31 @@ class LLMGenerator:
             "⚠️ CRITICAL: Use ONLY the current pricing data provided below. DO NOT use any pricing from examples as it may be outdated.",
             "",
             f"CUSTOMER INQUIRY: {customer_comment}",
-            ""
+            "",
         ]
 
         if viability["has_viable_product"] and viability["should_provide_pricing"]:
             # We have viable product with pricing data
             primary_product = viability["primary_product"]
-            pricing = primary_product.get('pricing', {})
+            pricing = primary_product.get("pricing", {})
 
-            prompt_parts.extend([
-                "📊 CURRENT PRICING DATA (Use this authoritative data):",
-                f"• Product: {primary_product.get('product_name', 'N/A')}",
-                f"• SKU: {primary_product.get('sku', 'N/A')}",
-                f"• Current Price: R{pricing.get('current_price', 'TBD')}",
-            ])
+            prompt_parts.extend(
+                [
+                    "📊 CURRENT PRICING DATA (Use this authoritative data):",
+                    f"• Product: {primary_product.get('product_name', 'N/A')}",
+                    f"• SKU: {primary_product.get('sku', 'N/A')}",
+                    f"• Current Price: R{pricing.get('current_price', 'TBD')}",
+                ]
+            )
 
-            if pricing.get('is_on_promotion'):
-                special_price = pricing.get('special_price')
+            if pricing.get("is_on_promotion"):
+                special_price = pricing.get("special_price")
                 if special_price:
-                    prompt_parts.append(f"• 🔥 Special Price: R{special_price} (PROMOTION ACTIVE)")
+                    prompt_parts.append(
+                        f"• 🔥 Special Price: R{special_price} (PROMOTION ACTIVE)"
+                    )
 
-            if pricing.get('price_updated'):
+            if pricing.get("price_updated"):
                 prompt_parts.append(f"• Last Updated: {pricing.get('price_updated')}")
 
             prompt_parts.append("")
@@ -174,79 +198,98 @@ class LLMGenerator:
             # Add secondary product if available
             if viability["secondary_product_viable"]:
                 secondary_product = viability["secondary_product"]
-                secondary_pricing = secondary_product.get('pricing', {})
+                secondary_pricing = secondary_product.get("pricing", {})
                 if secondary_pricing:
-                    prompt_parts.extend([
-                        "📋 ALTERNATIVE OPTION:",
-                        f"• Product: {secondary_product.get('product_name', 'N/A')}",
-                        f"• Current Price: R{secondary_pricing.get('current_price', 'TBD')}",
-                        ""
-                    ])
+                    prompt_parts.extend(
+                        [
+                            "📋 ALTERNATIVE OPTION:",
+                            f"• Product: {secondary_product.get('product_name', 'N/A')}",
+                            f"• Current Price: R{secondary_pricing.get('current_price', 'TBD')}",
+                            "",
+                        ]
+                    )
 
         else:
             # No viable product or pricing data
-            prompt_parts.extend([
-                "⚠️ PRODUCT AVAILABILITY NOTICE:",
-                "The requested product is no longer available or has been discontinued.",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "⚠️ PRODUCT AVAILABILITY NOTICE:",
+                    "The requested product is no longer available or has been discontinued.",
+                    "",
+                ]
+            )
 
-            if viability["alternative_recommended"] and viability["secondary_product_viable"]:
+            if (
+                viability["alternative_recommended"]
+                and viability["secondary_product_viable"]
+            ):
                 secondary_product = viability["secondary_product"]
-                secondary_pricing = secondary_product.get('pricing', {})
+                secondary_pricing = secondary_product.get("pricing", {})
                 if secondary_pricing:
-                    prompt_parts.extend([
-                        "📋 RECOMMENDED ALTERNATIVE:",
-                        f"• Product: {secondary_product.get('product_name', 'N/A')}",
-                        f"• Current Price: R{secondary_pricing.get('current_price', 'TBD')}",
-                        ""
-                    ])
+                    prompt_parts.extend(
+                        [
+                            "📋 RECOMMENDED ALTERNATIVE:",
+                            f"• Product: {secondary_product.get('product_name', 'N/A')}",
+                            f"• Current Price: R{secondary_pricing.get('current_price', 'TBD')}",
+                            "",
+                        ]
+                    )
 
         # Add minimal example for tone only
-        examples = context.get('examples', [])
+        examples = context.get("examples", [])
         if examples:
             example = examples[0]
-            prompt_parts.extend([
-                "📝 TONE REFERENCE (DO NOT copy pricing from this):",
-                f"Example response style: {example.get('original_reply', '')[:150]}...",
-                "",
-                "⚠️ WARNING: Ignore any pricing mentioned in the above example - use only current data provided above.",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "📝 TONE REFERENCE (DO NOT copy pricing from this):",
+                    f"Example response style: {example.get('original_reply', '')[:150]}...",
+                    "",
+                    "⚠️ WARNING: Ignore any pricing mentioned in the above example - use only current data provided above.",
+                    "",
+                ]
+            )
 
         if viability["has_viable_product"] and viability["should_provide_pricing"]:
-            prompt_parts.extend([
-                "RESPONSE GUIDELINES:",
-                "1. ✅ Use ONLY the current pricing data provided above",
-                "2. ❌ NEVER use pricing from examples - they may be outdated",
-                "3. Include product name and SKU for clarity",
-                "4. Mention if item is on promotion with special pricing",
-                "5. Be helpful and professional in Wootware's tone",
-                "6. Do NOT include signature - it will be added automatically",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "RESPONSE GUIDELINES:",
+                    "1. ✅ Use ONLY the current pricing data provided above",
+                    "2. ❌ NEVER use pricing from examples - they may be outdated",
+                    "3. Include product name and SKU for clarity",
+                    "4. Mention if item is on promotion with special pricing",
+                    "5. Be helpful and professional in Wootware's tone",
+                    "6. Do NOT include signature - it will be added automatically",
+                    "",
+                ]
+            )
         else:
-            prompt_parts.extend([
-                "RESPONSE GUIDELINES:",
-                "1. ❌ DO NOT provide pricing for discontinued/unavailable products",
-                "2. Explain that the original product is no longer available",
-                "3. Suggest the recommended alternative if available",
-                "4. Offer to help find similar products if needed",
-                "5. Be helpful and professional in Wootware's tone",
-                "6. Do NOT include signature - it will be added automatically",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "RESPONSE GUIDELINES:",
+                    "1. ❌ DO NOT provide pricing for discontinued/unavailable products",
+                    "2. Explain that the original product is no longer available",
+                    "3. Suggest the recommended alternative if available",
+                    "4. Offer to help find similar products if needed",
+                    "5. Be helpful and professional in Wootware's tone",
+                    "6. Do NOT include signature - it will be added automatically",
+                    "",
+                ]
+            )
 
-        real_time_data = context.get('real_time_data', {})
-        prompt_parts.extend([
-            f"Data freshness: {real_time_data.get('data_freshness', 'Unknown')}",
-            "",
-            "Generate your pricing response now:"
-        ])
+        real_time_data = context.get("real_time_data", {})
+        prompt_parts.extend(
+            [
+                f"Data freshness: {real_time_data.get('data_freshness', 'Unknown')}",
+                "",
+                "Generate your pricing response now:",
+            ]
+        )
 
         return "\n".join(prompt_parts)
 
-    def _build_stock_prompt_with_viability(self, customer_comment: str, context: Dict) -> str:
+    def _build_stock_prompt_with_viability(
+        self, customer_comment: str, context: Dict
+    ) -> str:
         """
         Build specialized prompt for stock availability queries with product viability logic
 
@@ -265,40 +308,42 @@ class LLMGenerator:
             "⚠️ CRITICAL: Use ONLY the current stock data provided below. DO NOT use any availability info from examples as it may be outdated.",
             "",
             f"CUSTOMER INQUIRY: {customer_comment}",
-            ""
+            "",
         ]
 
         if viability["has_viable_product"] and viability["should_provide_stock"]:
             # We have viable product with stock data
             primary_product = viability["primary_product"]
-            stock = primary_product.get('stock', {})
+            stock = primary_product.get("stock", {})
 
-            prompt_parts.extend([
-                "📦 CURRENT STOCK STATUS (Use this authoritative data):",
-                f"• Product: {primary_product.get('product_name', 'N/A')}",
-                f"• SKU: {primary_product.get('sku', 'N/A')}",
-                f"• Stock Status: {'✅ IN STOCK' if stock.get('is_in_stock') else '❌ OUT OF STOCK'}",
-            ])
+            prompt_parts.extend(
+                [
+                    "📦 CURRENT STOCK STATUS (Use this authoritative data):",
+                    f"• Product: {primary_product.get('product_name', 'N/A')}",
+                    f"• SKU: {primary_product.get('sku', 'N/A')}",
+                    f"• Stock Status: {'✅ IN STOCK' if stock.get('is_in_stock') else '❌ OUT OF STOCK'}",
+                ]
+            )
 
-            if stock.get('is_in_stock'):
-                quantity = stock.get('stock_quantity', 0)
+            if stock.get("is_in_stock"):
+                quantity = stock.get("stock_quantity", 0)
                 if quantity > 0:
                     prompt_parts.append(f"• Available Quantity: {quantity}")
 
-                dispatch = stock.get('expected_dispatch')
+                dispatch = stock.get("expected_dispatch")
                 if dispatch:
                     prompt_parts.append(f"• Expected Dispatch: {dispatch}")
             else:
                 # Out of stock - provide lead time and ETA
-                lead_time = stock.get('lead_time')
+                lead_time = stock.get("lead_time")
                 if lead_time:
                     prompt_parts.append(f"• Lead Time: {lead_time}")
 
-                eta = stock.get('eta')
+                eta = stock.get("eta")
                 if eta:
                     prompt_parts.append(f"• Estimated Arrival: {eta}")
 
-            if stock.get('stock_updated'):
+            if stock.get("stock_updated"):
                 prompt_parts.append(f"• Last Updated: {stock.get('stock_updated')}")
 
             prompt_parts.append("")
@@ -306,80 +351,99 @@ class LLMGenerator:
             # Add secondary product if available
             if viability["secondary_product_viable"]:
                 secondary_product = viability["secondary_product"]
-                secondary_stock = secondary_product.get('stock', {})
+                secondary_stock = secondary_product.get("stock", {})
                 if secondary_stock:
-                    prompt_parts.extend([
-                        "📋 ALTERNATIVE OPTION:",
-                        f"• Product: {secondary_product.get('product_name', 'N/A')}",
-                        f"• Status: {'✅ IN STOCK' if secondary_stock.get('is_in_stock') else '❌ OUT OF STOCK'}",
-                        ""
-                    ])
+                    prompt_parts.extend(
+                        [
+                            "📋 ALTERNATIVE OPTION:",
+                            f"• Product: {secondary_product.get('product_name', 'N/A')}",
+                            f"• Status: {'✅ IN STOCK' if secondary_stock.get('is_in_stock') else '❌ OUT OF STOCK'}",
+                            "",
+                        ]
+                    )
 
         else:
             # No viable product
-            prompt_parts.extend([
-                "⚠️ PRODUCT AVAILABILITY NOTICE:",
-                "The requested product is no longer available or has been discontinued.",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "⚠️ PRODUCT AVAILABILITY NOTICE:",
+                    "The requested product is no longer available or has been discontinued.",
+                    "",
+                ]
+            )
 
-            if viability["alternative_recommended"] and viability["secondary_product_viable"]:
+            if (
+                viability["alternative_recommended"]
+                and viability["secondary_product_viable"]
+            ):
                 secondary_product = viability["secondary_product"]
-                secondary_stock = secondary_product.get('stock', {})
+                secondary_stock = secondary_product.get("stock", {})
                 if secondary_stock:
-                    prompt_parts.extend([
-                        "📋 RECOMMENDED ALTERNATIVE:",
-                        f"• Product: {secondary_product.get('product_name', 'N/A')}",
-                        f"• Status: {'✅ IN STOCK' if secondary_stock.get('is_in_stock') else '❌ OUT OF STOCK'}",
-                        ""
-                    ])
+                    prompt_parts.extend(
+                        [
+                            "📋 RECOMMENDED ALTERNATIVE:",
+                            f"• Product: {secondary_product.get('product_name', 'N/A')}",
+                            f"• Status: {'✅ IN STOCK' if secondary_stock.get('is_in_stock') else '❌ OUT OF STOCK'}",
+                            "",
+                        ]
+                    )
 
         # Add minimal example for tone only
-        examples = context.get('examples', [])
+        examples = context.get("examples", [])
         if examples:
             example = examples[0]
-            prompt_parts.extend([
-                "📝 TONE REFERENCE (DO NOT copy stock info from this):",
-                f"Example response style: {example.get('original_reply', '')[:150]}...",
-                "",
-                "⚠️ WARNING: Ignore any stock/availability mentioned in the above example - use only current data provided above.",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "📝 TONE REFERENCE (DO NOT copy stock info from this):",
+                    f"Example response style: {example.get('original_reply', '')[:150]}...",
+                    "",
+                    "⚠️ WARNING: Ignore any stock/availability mentioned in the above example - use only current data provided above.",
+                    "",
+                ]
+            )
 
         if viability["has_viable_product"] and viability["should_provide_stock"]:
-            prompt_parts.extend([
-                "RESPONSE GUIDELINES:",
-                "1. ✅ Use ONLY the current stock data provided above",
-                "2. ❌ NEVER use availability info from examples - they may be outdated",
-                "3. Clearly state if item is in stock or out of stock",
-                "4. Provide lead times and ETAs for out-of-stock items",
-                "5. Mention dispatch timeframes for in-stock items",
-                "6. Suggest alternatives if main product is unavailable",
-                "7. Do NOT include signature - it will be added automatically",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "RESPONSE GUIDELINES:",
+                    "1. ✅ Use ONLY the current stock data provided above",
+                    "2. ❌ NEVER use availability info from examples - they may be outdated",
+                    "3. Clearly state if item is in stock or out of stock",
+                    "4. Provide lead times and ETAs for out-of-stock items",
+                    "5. Mention dispatch timeframes for in-stock items",
+                    "6. Suggest alternatives if main product is unavailable",
+                    "7. Do NOT include signature - it will be added automatically",
+                    "",
+                ]
+            )
         else:
-            prompt_parts.extend([
-                "RESPONSE GUIDELINES:",
-                "1. ❌ DO NOT provide stock info for discontinued/unavailable products",
-                "2. Explain that the original product is no longer available",
-                "3. Suggest the recommended alternative if available",
-                "4. Offer to help find similar products if needed",
-                "5. Be helpful and professional in Wootware's tone",
-                "6. Do NOT include signature - it will be added automatically",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "RESPONSE GUIDELINES:",
+                    "1. ❌ DO NOT provide stock info for discontinued/unavailable products",
+                    "2. Explain that the original product is no longer available",
+                    "3. Suggest the recommended alternative if available",
+                    "4. Offer to help find similar products if needed",
+                    "5. Be helpful and professional in Wootware's tone",
+                    "6. Do NOT include signature - it will be added automatically",
+                    "",
+                ]
+            )
 
-        real_time_data = context.get('real_time_data', {})
-        prompt_parts.extend([
-            f"Data freshness: {real_time_data.get('data_freshness', 'Unknown')}",
-            "",
-            "Generate your stock availability response now:"
-        ])
+        real_time_data = context.get("real_time_data", {})
+        prompt_parts.extend(
+            [
+                f"Data freshness: {real_time_data.get('data_freshness', 'Unknown')}",
+                "",
+                "Generate your stock availability response now:",
+            ]
+        )
 
         return "\n".join(prompt_parts)
 
-    def _build_combined_prompt_with_viability(self, customer_comment: str, context: Dict) -> str:
+    def _build_combined_prompt_with_viability(
+        self, customer_comment: str, context: Dict
+    ) -> str:
         """
         Build prompt for queries needing both pricing and stock data with viability logic
 
@@ -398,45 +462,53 @@ class LLMGenerator:
             "⚠️ CRITICAL: Use ONLY the current data provided below. DO NOT use any pricing or stock info from examples as it may be outdated.",
             "",
             f"CUSTOMER INQUIRY: {customer_comment}",
-            ""
+            "",
         ]
 
         if viability["has_viable_product"]:
             # We have viable product
             primary_product = viability["primary_product"]
 
-            prompt_parts.extend([
-                "📊 CURRENT PRODUCT INFORMATION (Use this authoritative data):",
-                f"• Product: {primary_product.get('product_name', 'N/A')}",
-                f"• SKU: {primary_product.get('sku', 'N/A')}",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "📊 CURRENT PRODUCT INFORMATION (Use this authoritative data):",
+                    f"• Product: {primary_product.get('product_name', 'N/A')}",
+                    f"• SKU: {primary_product.get('sku', 'N/A')}",
+                    "",
+                ]
+            )
 
             # Pricing section
             if viability["should_provide_pricing"]:
-                pricing = primary_product.get('pricing', {})
+                pricing = primary_product.get("pricing", {})
                 prompt_parts.append("💰 PRICING:")
-                prompt_parts.append(f"  • Current Price: R{pricing.get('current_price', 'TBD')}")
+                prompt_parts.append(
+                    f"  • Current Price: R{pricing.get('current_price', 'TBD')}"
+                )
 
-                if pricing.get('is_on_promotion'):
-                    special_price = pricing.get('special_price')
+                if pricing.get("is_on_promotion"):
+                    special_price = pricing.get("special_price")
                     if special_price:
-                        prompt_parts.append(f"  • 🔥 Special Price: R{special_price} (PROMOTION ACTIVE)")
+                        prompt_parts.append(
+                            f"  • 🔥 Special Price: R{special_price} (PROMOTION ACTIVE)"
+                        )
 
                 prompt_parts.append("")
 
             # Stock section
             if viability["should_provide_stock"]:
-                stock = primary_product.get('stock', {})
+                stock = primary_product.get("stock", {})
                 prompt_parts.append("📦 AVAILABILITY:")
-                prompt_parts.append(f"  • Stock Status: {'✅ IN STOCK' if stock.get('is_in_stock') else '❌ OUT OF STOCK'}")
+                prompt_parts.append(
+                    f"  • Stock Status: {'✅ IN STOCK' if stock.get('is_in_stock') else '❌ OUT OF STOCK'}"
+                )
 
-                if stock.get('is_in_stock'):
-                    dispatch = stock.get('expected_dispatch')
+                if stock.get("is_in_stock"):
+                    dispatch = stock.get("expected_dispatch")
                     if dispatch:
                         prompt_parts.append(f"  • Expected Dispatch: {dispatch}")
                 else:
-                    lead_time = stock.get('lead_time')
+                    lead_time = stock.get("lead_time")
                     if lead_time:
                         prompt_parts.append(f"  • Lead Time: {lead_time}")
 
@@ -445,94 +517,121 @@ class LLMGenerator:
             # Add secondary product if available
             if viability["secondary_product_viable"]:
                 secondary_product = viability["secondary_product"]
-                prompt_parts.extend([
-                    "📋 ALTERNATIVE OPTION:",
-                    f"• Product: {secondary_product.get('product_name', 'N/A')}",
-                ])
+                prompt_parts.extend(
+                    [
+                        "📋 ALTERNATIVE OPTION:",
+                        f"• Product: {secondary_product.get('product_name', 'N/A')}",
+                    ]
+                )
 
                 if viability["should_provide_pricing"]:
-                    secondary_pricing = secondary_product.get('pricing', {})
+                    secondary_pricing = secondary_product.get("pricing", {})
                     if secondary_pricing:
-                        prompt_parts.append(f"• Price: R{secondary_pricing.get('current_price', 'TBD')}")
+                        prompt_parts.append(
+                            f"• Price: R{secondary_pricing.get('current_price', 'TBD')}"
+                        )
 
                 if viability["should_provide_stock"]:
-                    secondary_stock = secondary_product.get('stock', {})
+                    secondary_stock = secondary_product.get("stock", {})
                     if secondary_stock:
-                        prompt_parts.append(f"• Availability: {'✅ IN STOCK' if secondary_stock.get('is_in_stock') else '❌ OUT OF STOCK'}")
+                        prompt_parts.append(
+                            f"• Availability: {'✅ IN STOCK' if secondary_stock.get('is_in_stock') else '❌ OUT OF STOCK'}"
+                        )
 
                 prompt_parts.append("")
 
         else:
             # No viable product
-            prompt_parts.extend([
-                "⚠️ PRODUCT AVAILABILITY NOTICE:",
-                "The requested product is no longer available or has been discontinued.",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "⚠️ PRODUCT AVAILABILITY NOTICE:",
+                    "The requested product is no longer available or has been discontinued.",
+                    "",
+                ]
+            )
 
-            if viability["alternative_recommended"] and viability["secondary_product_viable"]:
+            if (
+                viability["alternative_recommended"]
+                and viability["secondary_product_viable"]
+            ):
                 secondary_product = viability["secondary_product"]
-                prompt_parts.extend([
-                    "📋 RECOMMENDED ALTERNATIVE:",
-                    f"• Product: {secondary_product.get('product_name', 'N/A')}",
-                ])
+                prompt_parts.extend(
+                    [
+                        "📋 RECOMMENDED ALTERNATIVE:",
+                        f"• Product: {secondary_product.get('product_name', 'N/A')}",
+                    ]
+                )
 
-                secondary_pricing = secondary_product.get('pricing', {})
+                secondary_pricing = secondary_product.get("pricing", {})
                 if secondary_pricing:
-                    prompt_parts.append(f"• Price: R{secondary_pricing.get('current_price', 'TBD')}")
+                    prompt_parts.append(
+                        f"• Price: R{secondary_pricing.get('current_price', 'TBD')}"
+                    )
 
-                secondary_stock = secondary_product.get('stock', {})
+                secondary_stock = secondary_product.get("stock", {})
                 if secondary_stock:
-                    prompt_parts.append(f"• Availability: {'✅ IN STOCK' if secondary_stock.get('is_in_stock') else '❌ OUT OF STOCK'}")
+                    prompt_parts.append(
+                        f"• Availability: {'✅ IN STOCK' if secondary_stock.get('is_in_stock') else '❌ OUT OF STOCK'}"
+                    )
 
                 prompt_parts.append("")
 
         # Add minimal example for tone only
-        examples = context.get('examples', [])
+        examples = context.get("examples", [])
         if examples:
             example = examples[0]
-            prompt_parts.extend([
-                "📝 TONE REFERENCE (DO NOT copy any data from this):",
-                f"Example response style: {example.get('original_reply', '')[:150]}...",
-                "",
-                "⚠️ WARNING: Ignore any pricing or stock info in the above example - use only current data provided above.",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "📝 TONE REFERENCE (DO NOT copy any data from this):",
+                    f"Example response style: {example.get('original_reply', '')[:150]}...",
+                    "",
+                    "⚠️ WARNING: Ignore any pricing or stock info in the above example - use only current data provided above.",
+                    "",
+                ]
+            )
 
         if viability["has_viable_product"]:
-            prompt_parts.extend([
-                "RESPONSE GUIDELINES:",
-                "1. ✅ Use ONLY the current data provided above",
-                "2. ❌ NEVER use pricing or availability info from examples",
-                "3. Address both pricing and availability in your response",
-                "4. Mention promotions if active",
-                "5. Provide lead times for out-of-stock items",
-                "6. Suggest alternatives if main product is unavailable",
-                "7. Do NOT include signature - it will be added automatically",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "RESPONSE GUIDELINES:",
+                    "1. ✅ Use ONLY the current data provided above",
+                    "2. ❌ NEVER use pricing or availability info from examples",
+                    "3. Address both pricing and availability in your response",
+                    "4. Mention promotions if active",
+                    "5. Provide lead times for out-of-stock items",
+                    "6. Suggest alternatives if main product is unavailable",
+                    "7. Do NOT include signature - it will be added automatically",
+                    "",
+                ]
+            )
         else:
-            prompt_parts.extend([
-                "RESPONSE GUIDELINES:",
-                "1. ❌ DO NOT provide pricing or stock info for discontinued products",
-                "2. Explain that the original product is no longer available",
-                "3. Focus on the recommended alternative if available",
-                "4. Offer to help find similar products if needed",
-                "5. Be helpful and professional in Wootware's tone",
-                "6. Do NOT include signature - it will be added automatically",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "RESPONSE GUIDELINES:",
+                    "1. ❌ DO NOT provide pricing or stock info for discontinued products",
+                    "2. Explain that the original product is no longer available",
+                    "3. Focus on the recommended alternative if available",
+                    "4. Offer to help find similar products if needed",
+                    "5. Be helpful and professional in Wootware's tone",
+                    "6. Do NOT include signature - it will be added automatically",
+                    "",
+                ]
+            )
 
-        real_time_data = context.get('real_time_data', {})
-        prompt_parts.extend([
-            f"Data freshness: {real_time_data.get('data_freshness', 'Unknown')}",
-            "",
-            "Generate your comprehensive response now:"
-        ])
+        real_time_data = context.get("real_time_data", {})
+        prompt_parts.extend(
+            [
+                f"Data freshness: {real_time_data.get('data_freshness', 'Unknown')}",
+                "",
+                "Generate your comprehensive response now:",
+            ]
+        )
 
         return "\n".join(prompt_parts)
 
-    def generate_response_from_examples(self, customer_comment: str, examples: List[Dict], woot_rep: str = None) -> str:
+    def generate_response_from_examples(
+        self, customer_comment: str, examples: List[Dict], woot_rep: str = None
+    ) -> str:
         """
         Generate response using examples (matching your 6-2 script approach)
 
@@ -550,37 +649,48 @@ class LLMGenerator:
 
             # Build messages exactly like your 6-2 script
             messages = [
-                {"role": "system", "content": "You are a helpful Wootware sales assistant."}
+                {
+                    "role": "system",
+                    "content": "You are a helpful Wootware sales assistant.",
+                }
             ]
 
             # Add few-shot examples from Pinecone matches
             for i, example in enumerate(examples[:3], start=1):
-                original_comment = example.get('original_comment', '')
-                original_reply = example.get('original_reply', '')
+                original_comment = example.get("original_comment", "")
+                original_reply = example.get("original_reply", "")
 
                 # Only add examples that have both comment and reply
-                if (isinstance(original_comment, str) and original_comment.strip() and
-                    isinstance(original_reply, str) and original_reply.strip()):
+                if (
+                    isinstance(original_comment, str)
+                    and original_comment.strip()
+                    and isinstance(original_reply, str)
+                    and original_reply.strip()
+                ):
 
-                    messages.append({
-                        "role": "user",
-                        "content": f"Example {i}:\nCustomer: {original_comment}\nAgent: {original_reply}"
-                    })
-                    logger.info(f"Added example {i} with similarity {example.get('similarity_score', 0):.3f}")
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": f"Example {i}:\nCustomer: {original_comment}\nAgent: {original_reply}",
+                        }
+                    )
+                    logger.info(
+                        f"Added example {i} with similarity {example.get('similarity_score', 0):.3f}"
+                    )
 
             # Add the actual customer comment
-            messages.append({
-                "role": "user",
-                "content": f"Now reply to this:\nCustomer: {customer_comment}\nAgent:"
-            })
+            messages.append(
+                {
+                    "role": "user",
+                    "content": f"Now reply to this:\nCustomer: {customer_comment}\nAgent:",
+                }
+            )
 
             logger.info(f"Sending {len(messages)} messages to OpenAI...")
 
-            #6-2 Call
+            # 6-2 Call
             response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=self.temperature
+                model=self.model, messages=messages, temperature=self.temperature
             )
 
             generated_reply = response.choices[0].message.content.strip()
@@ -588,18 +698,23 @@ class LLMGenerator:
             # Append rep signature
             final_reply = self._append_rep_signature(generated_reply, woot_rep)
 
-            logger.info(f"Generated response length: {len(final_reply)} (with {woot_rep} signature)")
+            logger.info(
+                f"Generated response length: {len(final_reply)} (with {woot_rep} signature)"
+            )
 
             return final_reply
 
         except Exception as e:
             logger.error(f"Response generation error: {e}")
             import traceback
+
             logger.error(f"Full traceback: {traceback.format_exc()}")
             fallback_response = "I apologize, but I'm having trouble generating a response right now. Please contact our sales team directly."
             return self._append_rep_signature(fallback_response, woot_rep)
 
-    def generate_enhanced_response(self, customer_comment: str, context: Dict, woot_rep: str = None) -> str:
+    def generate_enhanced_response(
+        self, customer_comment: str, context: Dict, woot_rep: str = None
+    ) -> str:
         """
         Generate response with INTENT-BASED prompt selection and graceful fallback
 
@@ -612,12 +727,16 @@ class LLMGenerator:
             Generated response text with rep signature
         """
         try:
-            logger.info(f"Generating enhanced response for: {customer_comment[:100]}...")
+            logger.info(
+                f"Generating enhanced response for: {customer_comment[:100]}..."
+            )
             logger.info(f"Rep: {woot_rep}")
 
             # FIXED: Use intent-based prompt selection (not keyword-based)
-            predicted_intent = context.get('predicted_intent', 'General Inquiry')
-            prompt_strategy = context.get('data_needs', {}).get('prompt_strategy', 'general_helpful')
+            predicted_intent = context.get("predicted_intent", "General Inquiry")
+            prompt_strategy = context.get("data_needs", {}).get(
+                "prompt_strategy", "general_helpful"
+            )
 
             logger.info(f"Intent: {predicted_intent}, Strategy: {prompt_strategy}")
 
@@ -627,20 +746,28 @@ class LLMGenerator:
                 prompt_type = "warranty_focused"
 
             elif predicted_intent == "Pricing Inquiry":
-                enhanced_prompt = self._build_pricing_prompt_with_viability(customer_comment, context)
+                enhanced_prompt = self._build_pricing_prompt_with_viability(
+                    customer_comment, context
+                )
                 prompt_type = "pricing_focused"
 
             elif predicted_intent == "Stock Availability":
-                enhanced_prompt = self._build_stock_prompt_with_viability(customer_comment, context)
+                enhanced_prompt = self._build_stock_prompt_with_viability(
+                    customer_comment, context
+                )
                 prompt_type = "stock_focused"
 
             elif predicted_intent == "Quotation Request":
-                enhanced_prompt = self._build_combined_prompt_with_viability(customer_comment, context)
+                enhanced_prompt = self._build_combined_prompt_with_viability(
+                    customer_comment, context
+                )
                 prompt_type = "quotation_focused"
 
             else:
                 # For General Inquiry, Order Assistance, etc.
-                enhanced_prompt = self._build_standard_enhanced_prompt(customer_comment, context)
+                enhanced_prompt = self._build_standard_enhanced_prompt(
+                    customer_comment, context
+                )
                 prompt_type = "general_helpful"
 
             logger.info(f"Using {prompt_type} prompt for intent: {predicted_intent}")
@@ -651,15 +778,12 @@ class LLMGenerator:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are Wootware's expert sales assistant. Provide helpful, accurate responses based on the given context and instructions. Always follow the data usage guidelines provided."
+                        "content": "You are Wootware's expert sales assistant. Provide helpful, accurate responses based on the given context and instructions. Always follow the data usage guidelines provided.",
                     },
-                    {
-                        "role": "user",
-                        "content": enhanced_prompt
-                    }
+                    {"role": "user", "content": enhanced_prompt},
                 ],
                 temperature=self.temperature,
-                max_tokens=1000
+                max_tokens=1000,
             )
 
             generated_reply = response.choices[0].message.content.strip()
@@ -667,37 +791,52 @@ class LLMGenerator:
             # CRITICAL: Check for minimal responses and fall back if needed
             if self._is_response_too_minimal(generated_reply):
                 logger.warning(
-                    f"Enhanced response too minimal ({len(generated_reply)} chars), falling back to examples")
-                examples = context.get('examples', [])
+                    f"Enhanced response too minimal ({len(generated_reply)} chars), falling back to examples"
+                )
+                examples = context.get("examples", [])
                 if examples:
-                    return self.generate_response_from_examples(customer_comment, examples, woot_rep)
+                    return self.generate_response_from_examples(
+                        customer_comment, examples, woot_rep
+                    )
                 else:
                     logger.warning("No examples available, using simple generation")
-                    return self.generate_simple_response(customer_comment, predicted_intent, woot_rep)
+                    return self.generate_simple_response(
+                        customer_comment, predicted_intent, woot_rep
+                    )
 
             # Append rep signature
             final_reply = self._append_rep_signature(generated_reply, woot_rep)
 
             logger.info(
-                f"Generated enhanced response length: {len(final_reply)} using {prompt_type} (with {woot_rep} signature)")
+                f"Generated enhanced response length: {len(final_reply)} using {prompt_type} (with {woot_rep} signature)"
+            )
 
             return final_reply
 
         except Exception as e:
             logger.error(f"Enhanced response generation error: {e}")
             import traceback
+
             logger.error(f"Full traceback: {traceback.format_exc()}")
 
             # GRACEFUL FALLBACK: Try examples first, then simple
             try:
                 logger.info("Falling back to examples-based generation")
-                examples = context.get('examples', [])
+                examples = context.get("examples", [])
                 if examples:
-                    return self.generate_response_from_examples(customer_comment, examples, woot_rep)
+                    return self.generate_response_from_examples(
+                        customer_comment, examples, woot_rep
+                    )
                 else:
-                    logger.info("No examples available, falling back to simple generation")
-                    predicted_intent = context.get('predicted_intent', 'General Inquiry')
-                    return self.generate_simple_response(customer_comment, predicted_intent, woot_rep)
+                    logger.info(
+                        "No examples available, falling back to simple generation"
+                    )
+                    predicted_intent = context.get(
+                        "predicted_intent", "General Inquiry"
+                    )
+                    return self.generate_simple_response(
+                        customer_comment, predicted_intent, woot_rep
+                    )
             except Exception as fallback_error:
                 logger.error(f"Fallback generation also failed: {fallback_error}")
                 fallback_response = "I apologize, but I'm having trouble generating a response right now. Please contact our sales team directly."
@@ -718,19 +857,21 @@ class LLMGenerator:
 
         # Remove common patterns
         patterns_to_remove = [
-            r'hey there,?\s*',
-            r'hi there,?\s*',
-            r'hello,?\s*',
-            r'good morning,?\s*',
-            r'good afternoon,?\s*',
-            r'thanks?\s*for\s*reaching\s*out,?\s*',
-            r'kind\s*regards,?\s*\w*',
-            r'best\s*regards,?\s*\w*',
-            r'sincerely,?\s*\w*'
+            r"hey there,?\s*",
+            r"hi there,?\s*",
+            r"hello,?\s*",
+            r"good morning,?\s*",
+            r"good afternoon,?\s*",
+            r"thanks?\s*for\s*reaching\s*out,?\s*",
+            r"kind\s*regards,?\s*\w*",
+            r"best\s*regards,?\s*\w*",
+            r"sincerely,?\s*\w*",
         ]
 
         for pattern in patterns_to_remove:
-            cleaned_response = re.sub(pattern, '', cleaned_response, flags=re.IGNORECASE)
+            cleaned_response = re.sub(
+                pattern, "", cleaned_response, flags=re.IGNORECASE
+            )
 
         # Check if there's substantial content left
         substantial_content = cleaned_response.strip()
@@ -743,7 +884,9 @@ class LLMGenerator:
         if len(substantial_content) < 50:
             return True
 
-        word_count = len([word for word in substantial_content.split() if len(word) > 2])
+        word_count = len(
+            [word for word in substantial_content.split() if len(word) > 2]
+        )
         if word_count < 10:
             return True
 
@@ -766,118 +909,131 @@ class LLMGenerator:
             "🛡️ FOCUS: The customer is asking about warranty information - provide helpful warranty details.",
             "",
             f"CUSTOMER INQUIRY: {customer_comment}",
-            ""
+            "",
         ]
 
         # Check product availability and external comment status
-        product_selection = context.get('product_selection', {})
-        is_external_comment = context.get('is_external_comment', False)
-        has_product_data = product_selection.get('has_product_data', False)
+        product_selection = context.get("product_selection", {})
+        is_external_comment = context.get("is_external_comment", False)
+        has_product_data = product_selection.get("has_product_data", False)
 
         if has_product_data:
             # We have product data - use it
-            primary_product = product_selection.get('primary_product')
-            if primary_product and primary_product.get('is_viable', False):
+            primary_product = product_selection.get("primary_product")
+            if primary_product and primary_product.get("is_viable", False):
                 # Extract warranty info from product description
-                description = primary_product.get('description', '')
+                description = primary_product.get("description", "")
                 warranty_info = self._extract_warranty_info(description)
 
-                prompt_parts.extend([
-                    "📋 CURRENT PRODUCT INFORMATION:",
-                    f"• Product: {primary_product.get('product_name', 'N/A')}",
-                    f"• SKU: {primary_product.get('sku', 'N/A')}",
-                    ""
-                ])
+                prompt_parts.extend(
+                    [
+                        "📋 CURRENT PRODUCT INFORMATION:",
+                        f"• Product: {primary_product.get('product_name', 'N/A')}",
+                        f"• SKU: {primary_product.get('sku', 'N/A')}",
+                        "",
+                    ]
+                )
 
                 if warranty_info:
-                    prompt_parts.extend([
-                        "🛡️ WARRANTY INFORMATION:",
-                        f"• {warranty_info}",
-                        ""
-                    ])
+                    prompt_parts.extend(
+                        ["🛡️ WARRANTY INFORMATION:", f"• {warranty_info}", ""]
+                    )
                 else:
-                    prompt_parts.extend([
-                        "🛡️ WARRANTY INFORMATION:",
-                        "• Warranty details available - check product specifications",
-                        "• Contact manufacturer for specific warranty terms",
-                        ""
-                    ])
+                    prompt_parts.extend(
+                        [
+                            "🛡️ WARRANTY INFORMATION:",
+                            "• Warranty details available - check product specifications",
+                            "• Contact manufacturer for specific warranty terms",
+                            "",
+                        ]
+                    )
             else:
                 # Product data exists but not viable (truly EOL)
-                prompt_parts.extend([
-                    "⚠️ PRODUCT STATUS:",
-                    "The requested product appears to be discontinued or end-of-life.",
-                    "Warranty may still be valid depending on purchase date.",
-                    ""
-                ])
+                prompt_parts.extend(
+                    [
+                        "⚠️ PRODUCT STATUS:",
+                        "The requested product appears to be discontinued or end-of-life.",
+                        "Warranty may still be valid depending on purchase date.",
+                        "",
+                    ]
+                )
 
         elif is_external_comment:
             # External comment - explain why we need to look up product
-            prompt_parts.extend([
-                "🔍 PRODUCT LOOKUP NEEDED:",
-                "This inquiry came through an external channel without product details linked.",
-                "We'll need to look up the specific product to provide accurate warranty information.",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "🔍 PRODUCT LOOKUP NEEDED:",
+                    "This inquiry came through an external channel without product details linked.",
+                    "We'll need to look up the specific product to provide accurate warranty information.",
+                    "",
+                ]
+            )
 
             # Try to extract model number from comment for helpful response
             model_number = self._extract_model_number_from_comment(customer_comment)
             if model_number:
-                prompt_parts.extend([
-                    f"📝 IDENTIFIED PRODUCT: {model_number}",
-                    "We can help look this up in our system for detailed warranty information.",
-                    ""
-                ])
+                prompt_parts.extend(
+                    [
+                        f"📝 IDENTIFIED PRODUCT: {model_number}",
+                        "We can help look this up in our system for detailed warranty information.",
+                        "",
+                    ]
+                )
 
         else:
             # No product data and not external - general case
-            prompt_parts.extend([
-                "🔍 PRODUCT INFORMATION NEEDED:",
-                "To provide accurate warranty details, we'll need to look up the specific product.",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "🔍 PRODUCT INFORMATION NEEDED:",
+                    "To provide accurate warranty details, we'll need to look up the specific product.",
+                    "",
+                ]
+            )
 
         # Add example for tone (if available)
-        examples = context.get('examples', [])
+        examples = context.get("examples", [])
         if examples:
             example = examples[0]
             # Only show non-pricing examples for warranty queries
-            if 'warranty' in example.get('original_reply', '').lower():
-                prompt_parts.extend([
-                    "📝 TONE REFERENCE:",
-                    f"Example warranty response style: {example.get('original_reply', '')[:150]}...",
-                    ""
-                ])
+            if "warranty" in example.get("original_reply", "").lower():
+                prompt_parts.extend(
+                    [
+                        "📝 TONE REFERENCE:",
+                        f"Example warranty response style: {example.get('original_reply', '')[:150]}...",
+                        "",
+                    ]
+                )
 
         # Guidelines based on data availability
         if has_product_data:
-            prompt_parts.extend([
-                "RESPONSE GUIDELINES:",
-                "1. ✅ Use the warranty information provided above",
-                "2. ❌ DO NOT include pricing unless specifically requested",
-                "3. Provide clear warranty terms and duration",
-                "4. Guide on warranty claims process if needed",
-                "5. Mention manufacturer warranty vs retailer support",
-                "6. Be helpful and professional",
-                "7. Do NOT include signature - it will be added automatically"
-            ])
+            prompt_parts.extend(
+                [
+                    "RESPONSE GUIDELINES:",
+                    "1. ✅ Use the warranty information provided above",
+                    "2. ❌ DO NOT include pricing unless specifically requested",
+                    "3. Provide clear warranty terms and duration",
+                    "4. Guide on warranty claims process if needed",
+                    "5. Mention manufacturer warranty vs retailer support",
+                    "6. Be helpful and professional",
+                    "7. Do NOT include signature - it will be added automatically",
+                ]
+            )
         else:
-            prompt_parts.extend([
-                "RESPONSE GUIDELINES:",
-                "1. ✅ Acknowledge the warranty inquiry professionally",
-                "2. ✅ Offer to look up the specific product for detailed warranty info",
-                "3. ✅ Provide general guidance on warranty claims if helpful",
-                "4. ❌ DO NOT make up warranty terms without product data",
-                "5. ❌ DO NOT claim products are discontinued without confirmation",
-                "6. ✅ Ask for product details if needed for lookup",
-                "7. Be helpful and offer next steps",
-                "8. Do NOT include signature - it will be added automatically"
-            ])
+            prompt_parts.extend(
+                [
+                    "RESPONSE GUIDELINES:",
+                    "1. ✅ Acknowledge the warranty inquiry professionally",
+                    "2. ✅ Offer to look up the specific product for detailed warranty info",
+                    "3. ✅ Provide general guidance on warranty claims if helpful",
+                    "4. ❌ DO NOT make up warranty terms without product data",
+                    "5. ❌ DO NOT claim products are discontinued without confirmation",
+                    "6. ✅ Ask for product details if needed for lookup",
+                    "7. Be helpful and offer next steps",
+                    "8. Do NOT include signature - it will be added automatically",
+                ]
+            )
 
-        prompt_parts.extend([
-            "",
-            "Generate your warranty-focused response now:"
-        ])
+        prompt_parts.extend(["", "Generate your warranty-focused response now:"])
 
         return "\n".join(prompt_parts)
 
@@ -893,12 +1049,12 @@ class LLMGenerator:
         """
         # Common patterns for product model numbers
         model_patterns = [
-            r'\b[A-Z]{2,}\d{4,}[A-Z\d]*\b',  # ST20000NM002H, GTX1080, etc.
-            r'\b\d{1,2}TB\b',  # Storage capacity
-            r'\bGTX\s*\d{4}\b',  # Graphics cards
-            r'\bRTX\s*\d{4}\b',  # RTX cards
-            r'\bRyzen\s*\d+\s*\d{4}[A-Z]*\b',  # AMD processors
-            r'\bi[3579]-\d{4,5}[A-Z]*\b'  # Intel processors
+            r"\b[A-Z]{2,}\d{4,}[A-Z\d]*\b",  # ST20000NM002H, GTX1080, etc.
+            r"\b\d{1,2}TB\b",  # Storage capacity
+            r"\bGTX\s*\d{4}\b",  # Graphics cards
+            r"\bRTX\s*\d{4}\b",  # RTX cards
+            r"\bRyzen\s*\d+\s*\d{4}[A-Z]*\b",  # AMD processors
+            r"\bi[3579]-\d{4,5}[A-Z]*\b",  # Intel processors
         ]
 
         found_models = []
@@ -912,7 +1068,9 @@ class LLMGenerator:
 
         return ""
 
-    def _build_general_inquiry_with_lookup_prompt(self, customer_comment: str, context: Dict) -> str:
+    def _build_general_inquiry_with_lookup_prompt(
+        self, customer_comment: str, context: Dict
+    ) -> str:
         """
         NEW: Build prompt for general inquiries that need product lookup
 
@@ -927,69 +1085,80 @@ class LLMGenerator:
             "You are Wootware's expert sales assistant responding to a GENERAL INQUIRY.",
             "",
             f"CUSTOMER INQUIRY: {customer_comment}",
-            ""
+            "",
         ]
 
         # Check if this is an external comment needing lookup
-        is_external_comment = context.get('is_external_comment', False)
-        has_product_data = context.get('product_selection', {}).get('has_product_data', False)
+        is_external_comment = context.get("is_external_comment", False)
+        has_product_data = context.get("product_selection", {}).get(
+            "has_product_data", False
+        )
 
         if is_external_comment and not has_product_data:
-            prompt_parts.extend([
-                "🔍 SITUATION:",
-                "This inquiry came through an external channel without linked product information.",
-                "We should offer to help look up the specific product they're asking about.",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "🔍 SITUATION:",
+                    "This inquiry came through an external channel without linked product information.",
+                    "We should offer to help look up the specific product they're asking about.",
+                    "",
+                ]
+            )
 
             # Try to extract what they're looking for
             model_number = self._extract_model_number_from_comment(customer_comment)
             if model_number:
-                prompt_parts.extend([
-                    f"📝 IDENTIFIED PRODUCT: {model_number}",
-                    ""
-                ])
+                prompt_parts.extend([f"📝 IDENTIFIED PRODUCT: {model_number}", ""])
 
         elif has_product_data:
             # We have product data - use it
-            primary_product = context.get('product_selection', {}).get('primary_product')
+            primary_product = context.get("product_selection", {}).get(
+                "primary_product"
+            )
             if primary_product:
-                prompt_parts.extend([
-                    "📋 PRODUCT INFORMATION AVAILABLE:",
-                    f"• Product: {primary_product.get('product_name', 'N/A')}",
-                    f"• SKU: {primary_product.get('sku', 'N/A')}",
-                    ""
-                ])
+                prompt_parts.extend(
+                    [
+                        "📋 PRODUCT INFORMATION AVAILABLE:",
+                        f"• Product: {primary_product.get('product_name', 'N/A')}",
+                        f"• SKU: {primary_product.get('sku', 'N/A')}",
+                        "",
+                    ]
+                )
 
         # Add examples for tone and style
-        examples = context.get('examples', [])
+        examples = context.get("examples", [])
         if examples:
-            prompt_parts.extend([
-                "📝 SIMILAR PAST RESPONSES (for style reference):",
-                ""
-            ])
+            prompt_parts.extend(
+                ["📝 SIMILAR PAST RESPONSES (for style reference):", ""]
+            )
             for i, example in enumerate(examples[:2], 1):
-                if (isinstance(example.get('original_comment'), str) and
-                        isinstance(example.get('original_reply'), str)):
-                    prompt_parts.append(f"Example {i} (similarity: {example.get('similarity_score', 0):.3f}):")
-                    prompt_parts.append(f"Customer: {example['original_comment'][:100]}...")
+                if isinstance(example.get("original_comment"), str) and isinstance(
+                    example.get("original_reply"), str
+                ):
+                    prompt_parts.append(
+                        f"Example {i} (similarity: {example.get('similarity_score', 0):.3f}):"
+                    )
+                    prompt_parts.append(
+                        f"Customer: {example['original_comment'][:100]}..."
+                    )
                     prompt_parts.append(f"Agent: {example['original_reply'][:150]}...")
                     prompt_parts.append("")
 
-        prompt_parts.extend([
-            "RESPONSE GUIDELINES:",
-            "1. ✅ Be helpful and professional",
-            "2. ✅ Offer to look up specific products if needed",
-            "3. ✅ Use any available product information appropriately",
-            "4. ✅ Provide accurate information based on available data",
-            "5. ❌ Don't make claims about product availability without data",
-            "6. ❌ Don't assume products are discontinued without confirmation",
-            "7. ✅ Guide customer on next steps if more info needed",
-            "8. Match Wootware's friendly but professional tone",
-            "9. Do NOT include signature - it will be added automatically",
-            "",
-            "Generate your helpful response now:"
-        ])
+        prompt_parts.extend(
+            [
+                "RESPONSE GUIDELINES:",
+                "1. ✅ Be helpful and professional",
+                "2. ✅ Offer to look up specific products if needed",
+                "3. ✅ Use any available product information appropriately",
+                "4. ✅ Provide accurate information based on available data",
+                "5. ❌ Don't make claims about product availability without data",
+                "6. ❌ Don't assume products are discontinued without confirmation",
+                "7. ✅ Guide customer on next steps if more info needed",
+                "8. Match Wootware's friendly but professional tone",
+                "9. Do NOT include signature - it will be added automatically",
+                "",
+                "Generate your helpful response now:",
+            ]
+        )
 
         return "\n".join(prompt_parts)
 
@@ -1008,10 +1177,10 @@ class LLMGenerator:
 
         # Look for warranty patterns in description
         warranty_patterns = [
-            r'(\d+\s*year[s]?\s*(?:limited\s*)?warranty)',
-            r'(warranty[:\s]*\d+\s*year[s]?)',
-            r'(\d+\s*year[s]?\s*limited\s*warranty)',
-            r'(warranty[:\s]*.*?year[s]?)',
+            r"(\d+\s*year[s]?\s*(?:limited\s*)?warranty)",
+            r"(warranty[:\s]*\d+\s*year[s]?)",
+            r"(\d+\s*year[s]?\s*limited\s*warranty)",
+            r"(warranty[:\s]*.*?year[s]?)",
         ]
 
         description_lower = description.lower()
@@ -1022,20 +1191,26 @@ class LLMGenerator:
                 return match.group(1).strip()
 
         # Look for warranty in table format
-        if 'warranty' in description_lower:
+        if "warranty" in description_lower:
             # Try to extract from HTML table structure
-            soup = BeautifulSoup(description, 'html.parser') if '<' in description else None
+            soup = (
+                BeautifulSoup(description, "html.parser")
+                if "<" in description
+                else None
+            )
             if soup:
                 # Look for warranty in table cells
-                for cell in soup.find_all(['td', 'th']):
-                    if cell.text and 'warranty' in cell.text.lower():
-                        next_cell = cell.find_next_sibling(['td', 'th'])
+                for cell in soup.find_all(["td", "th"]):
+                    if cell.text and "warranty" in cell.text.lower():
+                        next_cell = cell.find_next_sibling(["td", "th"])
                         if next_cell and next_cell.text.strip():
                             return next_cell.text.strip()
 
         return ""
 
-    def _build_standard_enhanced_prompt(self, customer_comment: str, context: Dict) -> str:
+    def _build_standard_enhanced_prompt(
+        self, customer_comment: str, context: Dict
+    ) -> str:
         """
         Build standard enhanced prompt for non-pricing/stock queries
 
@@ -1050,87 +1225,98 @@ class LLMGenerator:
             "You are Wootware's expert sales assistant. Generate a helpful, accurate response based on the following context:",
             "",
             f"CUSTOMER COMMENT: {customer_comment}",
-            ""
+            "",
         ]
 
         # Add customer context if available
-        customer_data = context.get('customer_data', {})
+        customer_data = context.get("customer_data", {})
         if customer_data:
-            prompt_parts.extend([
-                "CUSTOMER INFORMATION:",
-                f"- Name: {customer_data.get('customer_firstname', 'N/A')}",
-                f"- Email: {customer_data.get('customer_email', 'N/A')}",
-                ""
-            ])
+            prompt_parts.extend(
+                [
+                    "CUSTOMER INFORMATION:",
+                    f"- Name: {customer_data.get('customer_firstname', 'N/A')}",
+                    f"- Email: {customer_data.get('customer_email', 'N/A')}",
+                    "",
+                ]
+            )
 
         # Add product context if available - but check viability
-        product_selection = context.get('product_selection', {})
-        if product_selection.get('primary_product'):
-            primary_product = product_selection['primary_product']
-            prompt_parts.extend([
-                "MAIN PRODUCT INFORMATION:",
-                f"- Product: {primary_product.get('name', 'N/A')}",
-                f"- SKU: {primary_product.get('sku', 'N/A')}",
-                ""
-            ])
+        product_selection = context.get("product_selection", {})
+        if product_selection.get("primary_product"):
+            primary_product = product_selection["primary_product"]
+            prompt_parts.extend(
+                [
+                    "MAIN PRODUCT INFORMATION:",
+                    f"- Product: {primary_product.get('name', 'N/A')}",
+                    f"- SKU: {primary_product.get('sku', 'N/A')}",
+                    "",
+                ]
+            )
 
             # Only include pricing/stock if product is viable
-            if primary_product.get('is_viable', False):
-                prompt_parts.extend([
-                    f"- Current Price: R{primary_product.get('current_price', 'TBD')}",
-                    f"- Stock Status: {'In Stock' if primary_product.get('is_in_stock') else 'Out of Stock'}",
-                    f"- Lead Time: {primary_product.get('lead_time', 'TBD')}",
-                    ""
-                ])
+            if primary_product.get("is_viable", False):
+                prompt_parts.extend(
+                    [
+                        f"- Current Price: R{primary_product.get('current_price', 'TBD')}",
+                        f"- Stock Status: {'In Stock' if primary_product.get('is_in_stock') else 'Out of Stock'}",
+                        f"- Lead Time: {primary_product.get('lead_time', 'TBD')}",
+                        "",
+                    ]
+                )
             else:
-                prompt_parts.extend([
-                    "- Note: This product is no longer available",
-                    ""
-                ])
+                prompt_parts.extend(["- Note: This product is no longer available", ""])
 
         # Add alternative product if available
-        if product_selection.get('secondary_product'):
-            secondary_product = product_selection['secondary_product']
-            if secondary_product.get('is_viable', False):
-                prompt_parts.extend([
-                    "ALTERNATIVE PRODUCT:",
-                    f"- Product: {secondary_product.get('name', 'N/A')}",
-                    f"- Current Price: R{secondary_product.get('current_price', 'TBD')}",
-                    f"- Stock Status: {'In Stock' if secondary_product.get('is_in_stock') else 'Out of Stock'}",
-                    ""
-                ])
+        if product_selection.get("secondary_product"):
+            secondary_product = product_selection["secondary_product"]
+            if secondary_product.get("is_viable", False):
+                prompt_parts.extend(
+                    [
+                        "ALTERNATIVE PRODUCT:",
+                        f"- Product: {secondary_product.get('name', 'N/A')}",
+                        f"- Current Price: R{secondary_product.get('current_price', 'TBD')}",
+                        f"- Stock Status: {'In Stock' if secondary_product.get('is_in_stock') else 'Out of Stock'}",
+                        "",
+                    ]
+                )
 
         # Add similar response examples if available
-        examples = context.get('examples', [])
+        examples = context.get("examples", [])
         if examples:
-            prompt_parts.extend([
-                "SIMILAR PAST RESPONSES (for reference):",
-                ""
-            ])
+            prompt_parts.extend(["SIMILAR PAST RESPONSES (for reference):", ""])
             for i, example in enumerate(examples[:2], 1):
-                if (isinstance(example.get('original_comment'), str) and
-                    isinstance(example.get('original_reply'), str)):
-                    prompt_parts.append(f"Example {i} (similarity: {example.get('similarity_score', 0):.3f}):")
-                    prompt_parts.append(f"Customer: {example['original_comment'][:100]}...")
+                if isinstance(example.get("original_comment"), str) and isinstance(
+                    example.get("original_reply"), str
+                ):
+                    prompt_parts.append(
+                        f"Example {i} (similarity: {example.get('similarity_score', 0):.3f}):"
+                    )
+                    prompt_parts.append(
+                        f"Customer: {example['original_comment'][:100]}..."
+                    )
                     prompt_parts.append(f"Agent: {example['original_reply'][:100]}...")
                     prompt_parts.append("")
 
-        prompt_parts.extend([
-            "RESPONSE GUIDELINES:",
-            "1. Be helpful, professional, and specific",
-            "2. Include accurate product details when available",
-            "3. Do not provide pricing or stock info for discontinued products",
-            "4. Offer alternatives if the requested item isn't available",
-            "5. Include next steps or contact information if needed",
-            "6. Match Wootware's friendly but professional tone",
-            "7. Do NOT include a signature - this will be added automatically",
-            "",
-            "Generate your response:"
-        ])
+        prompt_parts.extend(
+            [
+                "RESPONSE GUIDELINES:",
+                "1. Be helpful, professional, and specific",
+                "2. Include accurate product details when available",
+                "3. Do not provide pricing or stock info for discontinued products",
+                "4. Offer alternatives if the requested item isn't available",
+                "5. Include next steps or contact information if needed",
+                "6. Match Wootware's friendly but professional tone",
+                "7. Do NOT include a signature - this will be added automatically",
+                "",
+                "Generate your response:",
+            ]
+        )
 
         return "\n".join(prompt_parts)
 
-    def generate_simple_response(self, customer_comment: str, intent: str = None, woot_rep: str = None) -> str:
+    def generate_simple_response(
+        self, customer_comment: str, intent: str = None, woot_rep: str = None
+    ) -> str:
         """
         Generate a simple response based on customer comment and intent
 
@@ -1157,10 +1343,10 @@ class LLMGenerator:
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt},
                 ],
                 temperature=self.temperature,
-                max_tokens=500
+                max_tokens=500,
             )
 
             generated_reply = response.choices[0].message.content.strip()
@@ -1168,7 +1354,9 @@ class LLMGenerator:
             # Append rep signature
             final_reply = self._append_rep_signature(generated_reply, woot_rep)
 
-            logger.info(f"Generated simple response length: {len(final_reply)} (with {woot_rep} signature)")
+            logger.info(
+                f"Generated simple response length: {len(final_reply)} (with {woot_rep} signature)"
+            )
 
             return final_reply
 
@@ -1177,7 +1365,9 @@ class LLMGenerator:
             fallback_response = "I apologize, but I'm having trouble generating a response right now. Please contact our sales team directly."
             return self._append_rep_signature(fallback_response, woot_rep)
 
-    def test_generation(self, test_comment: str = "Hello, I need help with a product inquiry") -> Dict:
+    def test_generation(
+        self, test_comment: str = "Hello, I need help with a product inquiry"
+    ) -> Dict:
         """
         Test the LLM generation capabilities with product viability logic
 
@@ -1188,7 +1378,9 @@ class LLMGenerator:
             Dict with test results
         """
         try:
-            logger.info("Testing enhanced LLM generation with product viability logic...")
+            logger.info(
+                "Testing enhanced LLM generation with product viability logic..."
+            )
 
             # Test simple generation
             simple_response = self.generate_simple_response(test_comment)
@@ -1196,73 +1388,76 @@ class LLMGenerator:
             # Test with fake examples
             fake_examples = [
                 {
-                    'similarity_score': 0.8,
-                    'original_comment': 'I need help with shipping',
-                    'original_reply': 'Thank you for contacting us. We offer various shipping options...'
+                    "similarity_score": 0.8,
+                    "original_comment": "I need help with shipping",
+                    "original_reply": "Thank you for contacting us. We offer various shipping options...",
                 }
             ]
-            example_response = self.generate_response_from_examples(test_comment, fake_examples)
+            example_response = self.generate_response_from_examples(
+                test_comment, fake_examples
+            )
 
             # Test enhanced response with fake viable product data
             fake_context = {
-                'data_needs': {
-                    'needs_pricing': True,
-                    'needs_stock': False,
-                    'needs_real_time_data': True
+                "data_needs": {
+                    "needs_pricing": True,
+                    "needs_stock": False,
+                    "needs_real_time_data": True,
                 },
-                'product_selection': {
-                    'primary_product': {
-                        'name': 'Test Product',
-                        'sku': 'TEST-001',
-                        'product_id': 'test123',
-                        'is_viable': True,
-                        'viability_reason': 'Product is in stock'
+                "product_selection": {
+                    "primary_product": {
+                        "name": "Test Product",
+                        "sku": "TEST-001",
+                        "product_id": "test123",
+                        "is_viable": True,
+                        "viability_reason": "Product is in stock",
                     },
-                    'has_viable_product': True,
-                    'selection_reason': 'Using main product (viable)'
+                    "has_viable_product": True,
+                    "selection_reason": "Using main product (viable)",
                 },
-                'real_time_data': {
-                    'primary_product': {
-                        'product_name': 'Test Product',
-                        'sku': 'TEST-001',
-                        'is_viable': True,
-                        'pricing': {
-                            'current_price': 1299.99,
-                            'is_on_promotion': False
-                        }
+                "real_time_data": {
+                    "primary_product": {
+                        "product_name": "Test Product",
+                        "sku": "TEST-001",
+                        "is_viable": True,
+                        "pricing": {"current_price": 1299.99, "is_on_promotion": False},
                     },
-                    'data_freshness': datetime.now().isoformat()
+                    "data_freshness": datetime.now().isoformat(),
                 },
-                'prioritization_strategy': 'real_time_priority',
-                'examples': fake_examples[:1]
+                "prioritization_strategy": "real_time_priority",
+                "examples": fake_examples[:1],
             }
-            enhanced_response = self.generate_enhanced_response("What's the price of this product?", fake_context)
+            enhanced_response = self.generate_enhanced_response(
+                "What's the price of this product?", fake_context
+            )
 
             # Test enhanced response with EOL product
             fake_eol_context = {
-                'data_needs': {
-                    'needs_pricing': True,
-                    'needs_stock': False,
-                    'needs_real_time_data': True
+                "data_needs": {
+                    "needs_pricing": True,
+                    "needs_stock": False,
+                    "needs_real_time_data": True,
                 },
-                'product_selection': {
-                    'primary_product': None,
-                    'has_viable_product': False,
-                    'selection_reason': 'No viable products available (EOL)'
+                "product_selection": {
+                    "primary_product": None,
+                    "has_viable_product": False,
+                    "selection_reason": "No viable products available (EOL)",
                 },
-                'real_time_data': {
-                    'primary_product': {
-                        'product_name': 'EOL Product',
-                        'sku': 'EOL-001',
-                        'is_viable': False,
-                        'viability_reason': 'Product is End of Life (EOL)'
+                "real_time_data": {
+                    "primary_product": {
+                        "product_name": "EOL Product",
+                        "sku": "EOL-001",
+                        "is_viable": False,
+                        "viability_reason": "Product is End of Life (EOL)",
                     },
-                    'data_freshness': datetime.now().isoformat()
+                    "data_freshness": datetime.now().isoformat(),
                 },
-                'prioritization_strategy': 'real_time_priority',
-                'examples': fake_examples[:1]
+                "prioritization_strategy": "real_time_priority",
+                "examples": fake_examples[:1],
             }
-            eol_response = self.generate_enhanced_response("What's the price of this EOL product?", fake_eol_context)
+            eol_response = self.generate_enhanced_response(
+                "What's the price of this EOL product?", fake_eol_context
+            )
 
             return {
                 "test_successful": True,
@@ -1276,7 +1471,7 @@ class LLMGenerator:
                 "eol_response_length": len(eol_response),
                 "model_used": self.model,
                 "temperature": self.temperature,
-                "enhanced_features": "Real-time data prioritization with product viability logic active"
+                "enhanced_features": "Real-time data prioritization with product viability logic active",
             }
 
         except Exception as e:
@@ -1285,12 +1480,13 @@ class LLMGenerator:
                 "test_successful": False,
                 "error": str(e),
                 "model_used": self.model,
-                "temperature": self.temperature
+                "temperature": self.temperature,
             }
 
 
 # Global generator instance (lazy-loaded)
 _llm_generator_instance = None
+
 
 def get_llm_generator() -> LLMGenerator:
     """
@@ -1306,7 +1502,9 @@ def get_llm_generator() -> LLMGenerator:
 
 
 # Convenience functions
-def generate_response_with_examples(customer_comment: str, examples: List[Dict], woot_rep: str = None) -> str:
+def generate_response_with_examples(
+    customer_comment: str, examples: List[Dict], woot_rep: str = None
+) -> str:
     """
     Convenience function to generate response using examples
 
@@ -1319,10 +1517,14 @@ def generate_response_with_examples(customer_comment: str, examples: List[Dict],
         Generated response text with rep signature
     """
     generator = get_llm_generator()
-    return generator.generate_response_from_examples(customer_comment, examples, woot_rep)
+    return generator.generate_response_from_examples(
+        customer_comment, examples, woot_rep
+    )
 
 
-def generate_enhanced_response_with_context(customer_comment: str, context: Dict, woot_rep: str = None) -> str:
+def generate_enhanced_response_with_context(
+    customer_comment: str, context: Dict, woot_rep: str = None
+) -> str:
     """
     Convenience function to generate response with enhanced context, real-time data prioritization, and product viability logic
 
@@ -1338,7 +1540,9 @@ def generate_enhanced_response_with_context(customer_comment: str, context: Dict
     return generator.generate_enhanced_response(customer_comment, context, woot_rep)
 
 
-def generate_simple_response_for_comment(customer_comment: str, intent: str = None, woot_rep: str = None) -> str:
+def generate_simple_response_for_comment(
+    customer_comment: str, intent: str = None, woot_rep: str = None
+) -> str:
     """
     Convenience function to generate simple response
 

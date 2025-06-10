@@ -6,7 +6,7 @@ Detects likely product categories from customer queries using pattern matching a
 import re
 import json
 import logging
-from typing import Dict, List, Optional, Set
+from typing import Dict, Optional
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,9 @@ class CategoryDetector:
         """
         self.intelligence = intelligence_data or self._load_default_intelligence()
 
-    def detect_categories(self, query: str, confidence_threshold: float = 0.3) -> Dict[str, float]:
+    def detect_categories(
+        self, query: str, confidence_threshold: float = 0.3
+    ) -> Dict[str, float]:
         """
         Detect likely categories from a query
 
@@ -50,7 +52,9 @@ class CategoryDetector:
                 category_scores[category_name] = score
 
         # Sort by confidence and return top categories
-        sorted_categories = dict(sorted(category_scores.items(), key=lambda x: x[1], reverse=True))
+        sorted_categories = dict(
+            sorted(category_scores.items(), key=lambda x: x[1], reverse=True)
+        )
 
         # Limit to top 3 categories to avoid noise
         return dict(list(sorted_categories.items())[:3])
@@ -100,58 +104,147 @@ class CategoryDetector:
         return {
             "categories": {
                 "Graphics Cards": {
-                    "keywords": ["gpu", "graphics", "video card", "rtx", "gtx", "radeon", "geforce"],
-                    "patterns": [r"\brtx\s*\d{4}\b", r"\bgtx\s*\d{4}\b", r"\bradeon\s*rx\s*\d{4}\b"],
-                    "brands": ["nvidia", "amd", "asus", "msi", "gigabyte", "evga"]
+                    "keywords": [
+                        "gpu",
+                        "graphics",
+                        "video card",
+                        "rtx",
+                        "gtx",
+                        "radeon",
+                        "geforce",
+                    ],
+                    "patterns": [
+                        r"\brtx\s*\d{4}\b",
+                        r"\bgtx\s*\d{4}\b",
+                        r"\bradeon\s*rx\s*\d{4}\b",
+                    ],
+                    "brands": ["nvidia", "amd", "asus", "msi", "gigabyte", "evga"],
                 },
                 "Processors": {
-                    "keywords": ["cpu", "processor", "ryzen", "intel", "core", "i3", "i5", "i7", "i9"],
-                    "patterns": [r"\bryzen\s*\d+\s*\d{4}[a-z]*\b", r"\bcore\s*i[3579]-\d{4,5}[a-z]*\b"],
-                    "brands": ["amd", "intel"]
+                    "keywords": [
+                        "cpu",
+                        "processor",
+                        "ryzen",
+                        "intel",
+                        "core",
+                        "i3",
+                        "i5",
+                        "i7",
+                        "i9",
+                    ],
+                    "patterns": [
+                        r"\bryzen\s*\d+\s*\d{4}[a-z]*\b",
+                        r"\bcore\s*i[3579]-\d{4,5}[a-z]*\b",
+                    ],
+                    "brands": ["amd", "intel"],
                 },
                 "Memory": {
                     "keywords": ["ram", "memory", "ddr4", "ddr5", "dimm"],
                     "patterns": [r"\b\d+gb\s*ddr[45]\b", r"\bddr[45]-\d{4}\b"],
-                    "brands": ["corsair", "kingston", "crucial", "gskill", "teamgroup"]
+                    "brands": ["corsair", "kingston", "crucial", "gskill", "teamgroup"],
                 },
                 "Storage": {
-                    "keywords": ["ssd", "hdd", "nvme", "storage", "drive", "hard drive", "solid state"],
-                    "patterns": [r"\b\d+gb\b", r"\b\d+tb\b", r"\bnvme\b", r"\bsata\b", r"\bm\.?2\b"],
-                    "brands": ["samsung", "western digital", "seagate", "crucial", "wd"]
+                    "keywords": [
+                        "ssd",
+                        "hdd",
+                        "nvme",
+                        "storage",
+                        "drive",
+                        "hard drive",
+                        "solid state",
+                    ],
+                    "patterns": [
+                        r"\b\d+gb\b",
+                        r"\b\d+tb\b",
+                        r"\bnvme\b",
+                        r"\bsata\b",
+                        r"\bm\.?2\b",
+                    ],
+                    "brands": [
+                        "samsung",
+                        "western digital",
+                        "seagate",
+                        "crucial",
+                        "wd",
+                    ],
                 },
                 "Motherboards": {
-                    "keywords": ["motherboard", "mobo", "mainboard", "socket", "chipset"],
-                    "patterns": [r"\bam[45]\b", r"\blga\d{4}\b", r"\bx\d{3}\b", r"\bb\d{3}\b"],
-                    "brands": ["asus", "msi", "gigabyte", "asrock"]
+                    "keywords": [
+                        "motherboard",
+                        "mobo",
+                        "mainboard",
+                        "socket",
+                        "chipset",
+                    ],
+                    "patterns": [
+                        r"\bam[45]\b",
+                        r"\blga\d{4}\b",
+                        r"\bx\d{3}\b",
+                        r"\bb\d{3}\b",
+                    ],
+                    "brands": ["asus", "msi", "gigabyte", "asrock"],
                 },
                 "Power Supplies": {
-                    "keywords": ["psu", "power supply", "watt", "watts", "modular", "80+"],
+                    "keywords": [
+                        "psu",
+                        "power supply",
+                        "watt",
+                        "watts",
+                        "modular",
+                        "80+",
+                    ],
                     "patterns": [r"\b\d+w\b", r"\b\d+\s*watts?\b", r"\b80\+\b"],
-                    "brands": ["corsair", "evga", "seasonic", "cooler master"]
+                    "brands": ["corsair", "evga", "seasonic", "cooler master"],
                 },
                 "Monitors": {
-                    "keywords": ["monitor", "display", "screen", "4k", "1440p", "144hz", "curved"],
-                    "patterns": [r"\b\d+\s*inch\b", r"\b\d+hz\b", r"\b4k\b", r"\b1440p\b"],
-                    "brands": ["asus", "acer", "lg", "samsung", "dell"]
+                    "keywords": [
+                        "monitor",
+                        "display",
+                        "screen",
+                        "4k",
+                        "1440p",
+                        "144hz",
+                        "curved",
+                    ],
+                    "patterns": [
+                        r"\b\d+\s*inch\b",
+                        r"\b\d+hz\b",
+                        r"\b4k\b",
+                        r"\b1440p\b",
+                    ],
+                    "brands": ["asus", "acer", "lg", "samsung", "dell"],
                 },
                 "Keyboards": {
                     "keywords": ["keyboard", "mechanical", "rgb", "gaming", "wireless"],
                     "patterns": [r"\bmechanical\b", r"\brgb\b", r"\bwireless\b"],
-                    "brands": ["logitech", "razer", "corsair", "steelseries"]
+                    "brands": ["logitech", "razer", "corsair", "steelseries"],
                 },
                 "Mice": {
-                    "keywords": ["mouse", "gaming mouse", "wireless", "optical", "laser"],
+                    "keywords": [
+                        "mouse",
+                        "gaming mouse",
+                        "wireless",
+                        "optical",
+                        "laser",
+                    ],
                     "patterns": [r"\bmouse\b", r"\bwireless\b", r"\boptical\b"],
-                    "brands": ["logitech", "razer", "corsair", "steelseries"]
+                    "brands": ["logitech", "razer", "corsair", "steelseries"],
                 },
                 "Cases": {
-                    "keywords": ["case", "chassis", "tower", "atx", "mini-itx", "tempered glass"],
+                    "keywords": [
+                        "case",
+                        "chassis",
+                        "tower",
+                        "atx",
+                        "mini-itx",
+                        "tempered glass",
+                    ],
                     "patterns": [r"\batx\b", r"\bmini-?itx\b", r"\bmid-?tower\b"],
-                    "brands": ["corsair", "nzxt", "fractal design", "cooler master"]
-                }
+                    "brands": ["corsair", "nzxt", "fractal design", "cooler master"],
+                },
             },
             "created": datetime.now().isoformat(),
-            "note": "Default category intelligence for product identification"
+            "note": "Default category intelligence for product identification",
         }
 
 
@@ -159,7 +252,9 @@ class CategoryIntelligenceManager:
     """Manages category intelligence data"""
 
     @staticmethod
-    def save_intelligence(intelligence: Dict, filepath: str = "category_intelligence.json") -> bool:
+    def save_intelligence(
+        intelligence: Dict, filepath: str = "category_intelligence.json"
+    ) -> bool:
         """
         Save category intelligence to file
 
@@ -171,7 +266,7 @@ class CategoryIntelligenceManager:
             True if successful, False otherwise
         """
         try:
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(intelligence, f, indent=2, ensure_ascii=False)
 
             logger.info(f"Category intelligence saved to {filepath}")
@@ -182,7 +277,9 @@ class CategoryIntelligenceManager:
             return False
 
     @staticmethod
-    def load_intelligence(filepath: str = "category_intelligence.json") -> Optional[Dict]:
+    def load_intelligence(
+        filepath: str = "category_intelligence.json",
+    ) -> Optional[Dict]:
         """
         Load category intelligence from file
 
@@ -193,7 +290,7 @@ class CategoryIntelligenceManager:
             Intelligence data or None if failed
         """
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 intelligence = json.load(f)
 
             logger.info(f"Category intelligence loaded from {filepath}")
@@ -207,7 +304,9 @@ class CategoryIntelligenceManager:
             return None
 
     @staticmethod
-    def create_default_intelligence(filepath: str = "category_intelligence.json") -> Dict:
+    def create_default_intelligence(
+        filepath: str = "category_intelligence.json",
+    ) -> Dict:
         """
         Create default category intelligence file
 
@@ -227,7 +326,9 @@ class CategoryIntelligenceManager:
 
 
 # Convenience functions
-def detect_categories_from_query(query: str, intelligence_file: str = "category_intelligence.json") -> Dict[str, float]:
+def detect_categories_from_query(
+    query: str, intelligence_file: str = "category_intelligence.json"
+) -> Dict[str, float]:
     """
     Convenience function to detect categories from a query
 
@@ -247,7 +348,9 @@ def detect_categories_from_query(query: str, intelligence_file: str = "category_
     return detector.detect_categories(query)
 
 
-def initialize_category_intelligence(filepath: str = "category_intelligence.json") -> bool:
+def initialize_category_intelligence(
+    filepath: str = "category_intelligence.json",
+) -> bool:
     """
     Initialize category intelligence system with default data
 
@@ -259,7 +362,9 @@ def initialize_category_intelligence(filepath: str = "category_intelligence.json
     """
     try:
         intelligence = CategoryIntelligenceManager.create_default_intelligence(filepath)
-        logger.info(f"Category intelligence initialized with {len(intelligence.get('categories', {}))} categories")
+        logger.info(
+            f"Category intelligence initialized with {len(intelligence.get('categories', {}))} categories"
+        )
         return True
 
     except Exception as e:
@@ -290,7 +395,7 @@ if __name__ == "__main__":
         "Gaming mechanical keyboard",
         "4K monitor 144Hz",
         "1TB NVMe SSD",
-        "650W modular PSU"
+        "650W modular PSU",
     ]
 
     for query in test_queries:
@@ -303,4 +408,4 @@ if __name__ == "__main__":
         else:
             print("  No categories detected")
 
-    print(f"\n✅ Category intelligence test completed")
+    print("\n✅ Category intelligence test completed")

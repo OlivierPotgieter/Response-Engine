@@ -6,7 +6,7 @@ Coordinates building all required components for the AI product identification s
 import logging
 import os
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SystemStatus:
     """Status of the product identification system build"""
+
     success: bool
     message: str
     details: Dict
@@ -61,7 +62,7 @@ class ProductIdentifierSystemBuilder:
                     details={"step": "configuration"},
                     processing_time=time.time() - start_time,
                     files_created=[],
-                    errors=self.errors
+                    errors=self.errors,
                 )
 
             # Step 2: Check if rebuild is needed
@@ -73,7 +74,7 @@ class ProductIdentifierSystemBuilder:
                     details={"step": "existing_files_check"},
                     processing_time=time.time() - start_time,
                     files_created=self._get_existing_files(),
-                    errors=[]
+                    errors=[],
                 )
 
             # Step 3: Build product intelligence
@@ -94,7 +95,9 @@ class ProductIdentifierSystemBuilder:
 
             processing_time = time.time() - start_time
 
-            logger.info(f"✅ System build completed successfully in {processing_time:.2f} seconds")
+            logger.info(
+                f"✅ System build completed successfully in {processing_time:.2f} seconds"
+            )
 
             return SystemStatus(
                 success=True,
@@ -102,16 +105,17 @@ class ProductIdentifierSystemBuilder:
                 details={
                     "step": "completed",
                     "files_created": self.files_created,
-                    "processing_time": processing_time
+                    "processing_time": processing_time,
                 },
                 processing_time=processing_time,
                 files_created=self.files_created,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
             logger.error(f"❌ System build failed: {e}")
             import traceback
+
             logger.error(f"Full traceback: {traceback.format_exc()}")
 
             return SystemStatus(
@@ -120,7 +124,7 @@ class ProductIdentifierSystemBuilder:
                 details={"step": "exception", "error": str(e)},
                 processing_time=time.time() - start_time,
                 files_created=self.files_created,
-                errors=self.errors + [str(e)]
+                errors=self.errors + [str(e)],
             )
 
     def _validate_configuration(self) -> bool:
@@ -130,15 +134,15 @@ class ProductIdentifierSystemBuilder:
 
             validation = ProductIdentifierConfig.validate_config()
 
-            if not validation['valid']:
-                self.errors.extend(validation['errors'])
+            if not validation["valid"]:
+                self.errors.extend(validation["errors"])
                 logger.error("❌ Configuration validation failed:")
-                for error in validation['errors']:
+                for error in validation["errors"]:
                     logger.error(f"   - {error}")
                 return False
 
-            if validation['warnings']:
-                for warning in validation['warnings']:
+            if validation["warnings"]:
+                for warning in validation["warnings"]:
                     logger.warning(f"⚠️ {warning}")
 
             logger.info("✅ Configuration validation passed")
@@ -154,7 +158,7 @@ class ProductIdentifierSystemBuilder:
         required_files = [
             "product_intelligence.json",
             "category_intelligence.json",
-            "product_embeddings_cache.pkl"
+            "product_embeddings_cache.pkl",
         ]
 
         existing_files = []
@@ -177,7 +181,7 @@ class ProductIdentifierSystemBuilder:
         required_files = [
             "product_intelligence.json",
             "category_intelligence.json",
-            "product_embeddings_cache.pkl"
+            "product_embeddings_cache.pkl",
         ]
 
         return [f for f in required_files if os.path.exists(f)]
@@ -214,32 +218,44 @@ class ProductIdentifierSystemBuilder:
             category_intelligence = {
                 "categories": {
                     "Graphics Cards": {
-                        "keywords": ["gpu", "graphics", "video card", "rtx", "gtx", "radeon"],
+                        "keywords": [
+                            "gpu",
+                            "graphics",
+                            "video card",
+                            "rtx",
+                            "gtx",
+                            "radeon",
+                        ],
                         "patterns": ["rtx \\d{4}", "gtx \\d{4}", "radeon rx \\d{4}"],
-                        "brands": ["nvidia", "amd", "asus", "msi", "gigabyte"]
+                        "brands": ["nvidia", "amd", "asus", "msi", "gigabyte"],
                     },
                     "Processors": {
                         "keywords": ["cpu", "processor", "ryzen", "intel", "core"],
-                        "patterns": ["ryzen \\d \\d{4}", "core i[3579]-\\d{4,5}", "intel core"],
-                        "brands": ["amd", "intel"]
+                        "patterns": [
+                            "ryzen \\d \\d{4}",
+                            "core i[3579]-\\d{4,5}",
+                            "intel core",
+                        ],
+                        "brands": ["amd", "intel"],
                     },
                     "Memory": {
                         "keywords": ["ram", "memory", "ddr4", "ddr5"],
                         "patterns": ["\\d+gb ddr[45]", "ddr[45]-\\d{4}"],
-                        "brands": ["corsair", "kingston", "crucial", "gskill"]
+                        "brands": ["corsair", "kingston", "crucial", "gskill"],
                     },
                     "Storage": {
                         "keywords": ["ssd", "hdd", "nvme", "storage", "drive"],
                         "patterns": ["\\d+gb", "\\d+tb", "nvme", "sata"],
-                        "brands": ["samsung", "western digital", "seagate", "crucial"]
-                    }
+                        "brands": ["samsung", "western digital", "seagate", "crucial"],
+                    },
                 },
                 "created": datetime.now().isoformat(),
-                "note": "Simple category intelligence - can be enhanced with ML analysis"
+                "note": "Simple category intelligence - can be enhanced with ML analysis",
             }
 
             import json
-            with open("category_intelligence.json", 'w') as f:
+
+            with open("category_intelligence.json", "w") as f:
                 json.dump(category_intelligence, f, indent=2)
 
             self.files_created.append("category_intelligence.json")
@@ -258,7 +274,8 @@ class ProductIdentifierSystemBuilder:
 
             # Step 1: Load product intelligence
             import json
-            with open("product_intelligence.json", 'r') as f:
+
+            with open("product_intelligence.json", "r") as f:
                 intelligence = json.load(f)
 
             products_data = intelligence.get("products", [])
@@ -266,7 +283,9 @@ class ProductIdentifierSystemBuilder:
                 self.errors.append("No products found in intelligence data")
                 return False
 
-            logger.info(f"📊 Found {len(products_data)} products for embedding generation")
+            logger.info(
+                f"📊 Found {len(products_data)} products for embedding generation"
+            )
 
             # Step 2: Initialize services
             from .embedding_service import EmbeddingService
@@ -282,7 +301,9 @@ class ProductIdentifierSystemBuilder:
 
             # Step 4: Generate embeddings
             logger.info("🧬 Generating embeddings for products...")
-            product_embeddings = embedding_service.create_product_embeddings(products_data)
+            product_embeddings = embedding_service.create_product_embeddings(
+                products_data
+            )
 
             if not product_embeddings:
                 self.errors.append("Failed to generate product embeddings")
@@ -325,7 +346,9 @@ class ProductIdentifierSystemBuilder:
                 logger.info("✅ System verification passed")
                 return True
             else:
-                self.errors.append("System verification failed - no results for test query")
+                self.errors.append(
+                    "System verification failed - no results for test query"
+                )
                 return False
 
         except Exception as e:
@@ -341,7 +364,7 @@ class ProductIdentifierSystemBuilder:
             details={"step": failed_step, "errors": self.errors},
             processing_time=time.time() - start_time,
             files_created=self.files_created,
-            errors=self.errors
+            errors=self.errors,
         )
 
 

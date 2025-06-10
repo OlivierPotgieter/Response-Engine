@@ -4,7 +4,11 @@ AI-powered product identification from customer comments using embeddings and ve
 """
 
 from .config import ProductIdentifierConfig
-from .smart_product_extractor import SmartProductExtractor, SmartProductMatch, SmartExtractionResult
+from .smart_product_extractor import (
+    SmartProductExtractor,
+    SmartProductMatch,
+    SmartExtractionResult,
+)
 from .product_extractor import ProductExtractor, ProductMatch, ExtractionResult
 from .build_system import ProductIdentifierSystemBuilder, SystemStatus
 
@@ -32,43 +36,54 @@ def search_comment_for_products(comment: str, max_results: int = 3) -> dict:
         # Convert to the expected format for backward compatibility
         products_found = []
         for product in result.products:
-            products_found.append({
-                "product_id": product.product_id,
-                "name": product.name,
-                "sku": product.sku,
-                "brand": product.brand,  # Note: now from Manufacturers table
-                "category": product.category,
-                "current_price": product.metadata.get("current_price"),
-                "is_in_stock": product.metadata.get("is_in_stock"),
-                "relevance_score": product.confidence,
-                "search_timestamp": "current",
-                "match_reason": product.match_reason
-            })
+            products_found.append(
+                {
+                    "product_id": product.product_id,
+                    "name": product.name,
+                    "sku": product.sku,
+                    "brand": product.brand,  # Note: now from Manufacturers table
+                    "category": product.category,
+                    "current_price": product.metadata.get("current_price"),
+                    "is_in_stock": product.metadata.get("is_in_stock"),
+                    "relevance_score": product.confidence,
+                    "search_timestamp": "current",
+                    "match_reason": product.match_reason,
+                }
+            )
 
         return {
             "comment_analyzed": comment,
             "identifiers_extracted": {
                 "search_terms": list(result.detected_categories.keys()),
-                "confidence_score": max(result.detected_categories.values()) if result.detected_categories else 0,
-                "categories_inferred": list(result.detected_categories.keys())
+                "confidence_score": (
+                    max(result.detected_categories.values())
+                    if result.detected_categories
+                    else 0
+                ),
+                "categories_inferred": list(result.detected_categories.keys()),
             },
             "products_found": products_found,
             "search_successful": len(products_found) > 0,
             "best_match": products_found[0] if products_found else None,
             "search_summary": {
-                "extraction_confidence": max(result.detected_categories.values()) if result.detected_categories else 0,
+                "extraction_confidence": (
+                    max(result.detected_categories.values())
+                    if result.detected_categories
+                    else 0
+                ),
                 "products_found_count": len(products_found),
                 "search_terms_used": list(result.detected_categories.keys()),
                 "categories_inferred": list(result.detected_categories.keys()),
                 "extraction_method": result.extraction_method,
-                "processing_time": result.processing_time
+                "processing_time": result.processing_time,
             },
             "search_timestamp": "current",
-            "note": "AI-powered product identification using embeddings and vector search"
+            "note": "AI-powered product identification using embeddings and vector search",
         }
 
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"AI product identification failed: {e}")
 
@@ -78,7 +93,7 @@ def search_comment_for_products(comment: str, max_results: int = 3) -> dict:
             "search_successful": False,
             "error": str(e),
             "search_timestamp": "current",
-            "note": "AI product identification failed - system may need initialization"
+            "note": "AI product identification failed - system may need initialization",
         }
 
 
@@ -106,13 +121,16 @@ def extract_product_identifiers_from_comment(comment: str) -> dict:
             "capacities_found": [],  # Legacy field - could be populated if needed
             "categories_inferred": list(detected_categories.keys()),
             "search_terms": list(detected_categories.keys()),
-            "confidence_score": max(detected_categories.values()) if detected_categories else 0,
+            "confidence_score": (
+                max(detected_categories.values()) if detected_categories else 0
+            ),
             "extraction_timestamp": "current",
-            "note": "AI-powered identifier extraction using category intelligence"
+            "note": "AI-powered identifier extraction using category intelligence",
         }
 
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Product identifier extraction failed: {e}")
 
@@ -124,7 +142,7 @@ def extract_product_identifiers_from_comment(comment: str) -> dict:
             "search_terms": [],
             "confidence_score": 0.0,
             "error": str(e),
-            "extraction_timestamp": "current"
+            "extraction_timestamp": "current",
         }
 
 
@@ -150,18 +168,19 @@ def initialize_product_identification_system(force_rebuild: bool = False) -> dic
             "message": result.message,
             "details": result.details,
             "time_taken": result.processing_time,
-            "files_created": result.files_created
+            "files_created": result.files_created,
         }
 
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"System initialization failed: {e}")
 
         return {
             "success": False,
             "message": f"System initialization failed: {str(e)}",
-            "error": str(e)
+            "error": str(e),
         }
 
 
@@ -175,10 +194,11 @@ def get_system_health() -> dict:
     try:
         # Check if required files exist
         import os
+
         required_files = [
             "product_intelligence.json",
             "category_intelligence.json",
-            "product_embeddings_cache.pkl"
+            "product_embeddings_cache.pkl",
         ]
 
         files_exist = {}
@@ -190,7 +210,7 @@ def get_system_health() -> dict:
         error_message = None
 
         try:
-            extractor = SmartProductExtractor()
+            SmartProductExtractor()
             system_ready = True
         except Exception as e:
             error_message = str(e)
@@ -200,38 +220,30 @@ def get_system_health() -> dict:
             "files_exist": files_exist,
             "all_files_present": all(files_exist.values()),
             "error": error_message,
-            "note": "System is ready if all files exist and extractor initializes"
+            "note": "System is ready if all files exist and extractor initializes",
         }
 
     except Exception as e:
-        return {
-            "system_ready": False,
-            "error": str(e),
-            "note": "Health check failed"
-        }
+        return {"system_ready": False, "error": str(e), "note": "Health check failed"}
 
 
 __all__ = [
     # Configuration
-    'ProductIdentifierConfig',
-
+    "ProductIdentifierConfig",
     # Extractors
-    'SmartProductExtractor',
-    'ProductExtractor',
-    'SmartProductMatch',
-    'ProductMatch',
-    'SmartExtractionResult',
-    'ExtractionResult',
-
+    "SmartProductExtractor",
+    "ProductExtractor",
+    "SmartProductMatch",
+    "ProductMatch",
+    "SmartExtractionResult",
+    "ExtractionResult",
     # System management
-    'ProductIdentifierSystemBuilder',
-    'SystemStatus',
-
+    "ProductIdentifierSystemBuilder",
+    "SystemStatus",
     # Backward-compatible interface functions
-    'search_comment_for_products',
-    'extract_product_identifiers_from_comment',
-
+    "search_comment_for_products",
+    "extract_product_identifiers_from_comment",
     # System management functions
-    'initialize_product_identification_system',
-    'get_system_health'
+    "initialize_product_identification_system",
+    "get_system_health",
 ]

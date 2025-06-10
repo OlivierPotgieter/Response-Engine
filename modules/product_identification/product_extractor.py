@@ -6,10 +6,9 @@ Combines embedding search with rule-based fallbacks for robust product identific
 import logging
 import re
 import time
-from typing import List, Dict, Optional, Tuple, Any, Set
+from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 from collections import Counter
-import json
 
 from config import ProductIdentifierConfig
 from embedding_service import EmbeddingService
@@ -21,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ProductMatch:
     """Data class for product matches"""
+
     product_id: int
     name: str
     brand: str
@@ -35,6 +35,7 @@ class ProductMatch:
 @dataclass
 class ExtractionResult:
     """Data class for extraction results"""
+
     products: List[ProductMatch]
     extraction_method: str
     query_processed: str
@@ -58,12 +59,17 @@ class ProductExtractor:
 
         # Ensure Pinecone connection
         if not self.pinecone_manager.connect_to_index():
-            logger.warning("Failed to connect to Pinecone index. Some features may not work.")
+            logger.warning(
+                "Failed to connect to Pinecone index. Some features may not work."
+            )
 
-    def extract_products_from_comment(self, comment: str,
-                                    max_products: Optional[int] = None,
-                                    category_filter: Optional[str] = None,
-                                    brand_filter: Optional[str] = None) -> ExtractionResult:
+    def extract_products_from_comment(
+        self,
+        comment: str,
+        max_products: Optional[int] = None,
+        category_filter: Optional[str] = None,
+        brand_filter: Optional[str] = None,
+    ) -> ExtractionResult:
         """
         Extract products from a customer comment
 
@@ -79,7 +85,7 @@ class ProductExtractor:
         start_time = time.time()
 
         if max_products is None:
-            max_products = self.config['max_products_per_comment']
+            max_products = self.config["max_products_per_comment"]
 
         logger.info(f"Extracting products from comment: {comment[:100]}...")
 
@@ -92,11 +98,15 @@ class ProductExtractor:
         )
 
         # If vector search fails or returns low-confidence results, try fallback methods
-        if (not extraction_result.products or
-            all(p.confidence < self.config['confidence_threshold']['medium'] for p in extraction_result.products)):
+        if not extraction_result.products or all(
+            p.confidence < self.config["confidence_threshold"]["medium"]
+            for p in extraction_result.products
+        ):
 
             logger.info("Vector search yielded poor results, trying fallback methods")
-            fallback_result = self._fallback_extraction(comment, max_products, category_filter, brand_filter)
+            fallback_result = self._fallback_extraction(
+                comment, max_products, category_filter, brand_filter
+            )
 
             if fallback_result.products:
                 # Combine results, prioritizing vector search but including fallback
@@ -113,15 +123,23 @@ class ProductExtractor:
         extraction_result.processing_time = processing_time
         extraction_result.query_processed = processed_comment
         extraction_result.total_matches = len(extraction_result.products)
-        extraction_result.confidence_distribution = self._calculate_confidence_distribution(extraction_result.products)
+        extraction_result.confidence_distribution = (
+            self._calculate_confidence_distribution(extraction_result.products)
+        )
 
-        logger.info(f"Extraction completed in {processing_time:.2f}s. Found {len(extraction_result.products)} products")
+        logger.info(
+            f"Extraction completed in {processing_time:.2f}s. Found {len(extraction_result.products)} products"
+        )
 
         return extraction_result
 
-    def _vector_search_extraction(self, processed_comment: str, max_products: int,
-                                category_filter: Optional[str] = None,
-                                brand_filter: Optional[str] = None) -> ExtractionResult:
+    def _vector_search_extraction(
+        self,
+        processed_comment: str,
+        max_products: int,
+        category_filter: Optional[str] = None,
+        brand_filter: Optional[str] = None,
+    ) -> ExtractionResult:
         """
         Extract products using vector similarity search
 
@@ -136,7 +154,9 @@ class ProductExtractor:
         """
         try:
             # Generate embedding for the comment
-            comment_embedding = self.embedding_service.generate_embedding(processed_comment)
+            comment_embedding = self.embedding_service.generate_embedding(
+                processed_comment
+            )
 
             if not comment_embedding:
                 logger.error("Failed to generate embedding for comment")
@@ -146,7 +166,7 @@ class ProductExtractor:
                     query_processed=processed_comment,
                     total_matches=0,
                     confidence_distribution={},
-                    processing_time=0.0
+                    processing_time=0.0,
                 )
 
             # Search Pinecone
@@ -155,25 +175,25 @@ class ProductExtractor:
                 category=category_filter,
                 brand=brand_filter,
                 enabled_only=True,
-                top_k=max_products * 2  # Get more results for better filtering
+                top_k=max_products * 2,  # Get more results for better filtering
             )
 
             # Convert to ProductMatch objects
             products = []
             for result in search_results:
-                if result['confidence'] >= self.config['confidence_threshold']['low']:
-                    metadata = result['metadata']
+                if result["confidence"] >= self.config["confidence_threshold"]["low"]:
+                    metadata = result["metadata"]
 
                     product_match = ProductMatch(
-                        product_id=result['product_id'],
-                        name=metadata.get('name', ''),
-                        brand=metadata.get('brand', ''),
-                        category=metadata.get('category', ''),
-                        confidence=result['confidence'],
+                        product_id=result["product_id"],
+                        name=metadata.get("name", ""),
+                        brand=metadata.get("brand", ""),
+                        category=metadata.get("category", ""),
+                        confidence=result["confidence"],
                         match_reason="vector_similarity",
                         metadata=metadata,
-                        sku=metadata.get('sku'),
-                        price_range=metadata.get('price_range')
+                        sku=metadata.get("sku"),
+                        price_range=metadata.get("price_range"),
                     )
                     products.append(product_match)
 
@@ -187,7 +207,7 @@ class ProductExtractor:
                 query_processed=processed_comment,
                 total_matches=len(products),
                 confidence_distribution={},
-                processing_time=0.0
+                processing_time=0.0,
             )
 
         except Exception as e:
@@ -198,12 +218,16 @@ class ProductExtractor:
                 query_processed=processed_comment,
                 total_matches=0,
                 confidence_distribution={},
-                processing_time=0.0
+                processing_time=0.0,
             )
 
-    def _fallback_extraction(self, original_comment: str, max_products: int,
-                           category_filter: Optional[str] = None,
-                           brand_filter: Optional[str] = None) -> ExtractionResult:
+    def _fallback_extraction(
+        self,
+        original_comment: str,
+        max_products: int,
+        category_filter: Optional[str] = None,
+        brand_filter: Optional[str] = None,
+    ) -> ExtractionResult:
         """
         Fallback extraction using rule-based pattern matching
 
@@ -226,7 +250,9 @@ class ProductExtractor:
 
         for pattern in model_patterns:
             # Search for products matching this pattern
-            pattern_products = self._search_by_pattern(pattern, category_filter, brand_filter)
+            pattern_products = self._search_by_pattern(
+                pattern, category_filter, brand_filter
+            )
             products.extend(pattern_products)
 
         # Extract brand mentions
@@ -259,7 +285,7 @@ class ProductExtractor:
             query_processed=original_comment,
             total_matches=len(unique_products),
             confidence_distribution={},
-            processing_time=0.0
+            processing_time=0.0,
         )
 
     def _extract_model_patterns_from_text(self, text: str) -> List[str]:
@@ -268,14 +294,14 @@ class ProductExtractor:
 
         # GPU patterns
         gpu_patterns = [
-            r'\b(rtx|gtx)\s*(\d{4})\s*(ti|super)?\b',
-            r'\b(radeon)\s*(rx|r)\s*(\d{4})\s*(xt|x)?\b',
+            r"\b(rtx|gtx)\s*(\d{4})\s*(ti|super)?\b",
+            r"\b(radeon)\s*(rx|r)\s*(\d{4})\s*(xt|x)?\b",
         ]
 
         # CPU patterns
         cpu_patterns = [
-            r'\b(ryzen)\s*(\d+)\s*(\d{4}[a-z]*)\b',
-            r'\b(core)\s*(i[3579])\s*(\d{4,5}[a-z]*)\b',
+            r"\b(ryzen)\s*(\d+)\s*(\d{4}[a-z]*)\b",
+            r"\b(core)\s*(i[3579])\s*(\d{4,5}[a-z]*)\b",
         ]
 
         all_patterns = gpu_patterns + cpu_patterns
@@ -287,8 +313,12 @@ class ProductExtractor:
 
         return patterns
 
-    def _search_by_pattern(self, pattern: str, category_filter: Optional[str] = None,
-                          brand_filter: Optional[str] = None) -> List[ProductMatch]:
+    def _search_by_pattern(
+        self,
+        pattern: str,
+        category_filter: Optional[str] = None,
+        brand_filter: Optional[str] = None,
+    ) -> List[ProductMatch]:
         """Search for products matching a specific pattern"""
         # This would ideally search the original product intelligence data
         # For now, we'll simulate some results
@@ -304,8 +334,18 @@ class ProductExtractor:
         brands = []
 
         common_brands = [
-            'nvidia', 'amd', 'intel', 'asus', 'msi', 'gigabyte', 'evga',
-            'corsair', 'logitech', 'razer', 'steelseries', 'hyperx'
+            "nvidia",
+            "amd",
+            "intel",
+            "asus",
+            "msi",
+            "gigabyte",
+            "evga",
+            "corsair",
+            "logitech",
+            "razer",
+            "steelseries",
+            "hyperx",
         ]
 
         for brand in common_brands:
@@ -314,7 +354,9 @@ class ProductExtractor:
 
         return brands
 
-    def _get_popular_brand_products(self, brand: str, category_filter: Optional[str] = None) -> List[ProductMatch]:
+    def _get_popular_brand_products(
+        self, brand: str, category_filter: Optional[str] = None
+    ) -> List[ProductMatch]:
         """Get popular products from a specific brand"""
         # This would search Pinecone for popular products from the brand
         # For now, return empty list
@@ -332,22 +374,25 @@ class ProductExtractor:
 
         return unique_products
 
-    def _calculate_confidence_distribution(self, products: List[ProductMatch]) -> Dict[str, int]:
+    def _calculate_confidence_distribution(
+        self, products: List[ProductMatch]
+    ) -> Dict[str, int]:
         """Calculate confidence distribution for products"""
-        distribution = {'high': 0, 'medium': 0, 'low': 0}
+        distribution = {"high": 0, "medium": 0, "low": 0}
 
         for product in products:
-            if product.confidence >= self.config['confidence_threshold']['high']:
-                distribution['high'] += 1
-            elif product.confidence >= self.config['confidence_threshold']['medium']:
-                distribution['medium'] += 1
+            if product.confidence >= self.config["confidence_threshold"]["high"]:
+                distribution["high"] += 1
+            elif product.confidence >= self.config["confidence_threshold"]["medium"]:
+                distribution["medium"] += 1
             else:
-                distribution['low'] += 1
+                distribution["low"] += 1
 
         return distribution
 
-    def extract_products_batch(self, comments: List[str],
-                             max_products_per_comment: Optional[int] = None) -> List[ExtractionResult]:
+    def extract_products_batch(
+        self, comments: List[str], max_products_per_comment: Optional[int] = None
+    ) -> List[ExtractionResult]:
         """
         Extract products from multiple comments in batch
 
@@ -359,7 +404,7 @@ class ProductExtractor:
             List of ExtractionResult objects
         """
         if max_products_per_comment is None:
-            max_products_per_comment = self.config['max_products_per_comment']
+            max_products_per_comment = self.config["max_products_per_comment"]
 
         results = []
 
@@ -369,23 +414,29 @@ class ProductExtractor:
             logger.info(f"Processing comment {i+1}/{len(comments)}")
 
             try:
-                result = self.extract_products_from_comment(comment, max_products_per_comment)
+                result = self.extract_products_from_comment(
+                    comment, max_products_per_comment
+                )
                 results.append(result)
             except Exception as e:
                 logger.error(f"Failed to process comment {i+1}: {e}")
                 # Add empty result for failed comment
-                results.append(ExtractionResult(
-                    products=[],
-                    extraction_method="error",
-                    query_processed=comment,
-                    total_matches=0,
-                    confidence_distribution={},
-                    processing_time=0.0
-                ))
+                results.append(
+                    ExtractionResult(
+                        products=[],
+                        extraction_method="error",
+                        query_processed=comment,
+                        total_matches=0,
+                        confidence_distribution={},
+                        processing_time=0.0,
+                    )
+                )
 
         return results
 
-    def get_extraction_statistics(self, results: List[ExtractionResult]) -> Dict[str, Any]:
+    def get_extraction_statistics(
+        self, results: List[ExtractionResult]
+    ) -> Dict[str, Any]:
         """
         Get statistics for a batch of extraction results
 
@@ -396,44 +447,50 @@ class ProductExtractor:
             Dictionary with extraction statistics
         """
         stats = {
-            'total_comments': len(results),
-            'successful_extractions': 0,
-            'total_products_found': 0,
-            'average_products_per_comment': 0.0,
-            'average_processing_time': 0.0,
-            'confidence_distribution': {'high': 0, 'medium': 0, 'low': 0},
-            'extraction_methods': Counter(),
-            'fallback_usage': 0
+            "total_comments": len(results),
+            "successful_extractions": 0,
+            "total_products_found": 0,
+            "average_products_per_comment": 0.0,
+            "average_processing_time": 0.0,
+            "confidence_distribution": {"high": 0, "medium": 0, "low": 0},
+            "extraction_methods": Counter(),
+            "fallback_usage": 0,
         }
 
         total_processing_time = 0.0
 
         for result in results:
             if result.products:
-                stats['successful_extractions'] += 1
-                stats['total_products_found'] += len(result.products)
+                stats["successful_extractions"] += 1
+                stats["total_products_found"] += len(result.products)
 
             total_processing_time += result.processing_time
-            stats['extraction_methods'][result.extraction_method] += 1
+            stats["extraction_methods"][result.extraction_method] += 1
 
             if result.fallback_used:
-                stats['fallback_usage'] += 1
+                stats["fallback_usage"] += 1
 
             # Aggregate confidence distribution
             for level, count in result.confidence_distribution.items():
-                stats['confidence_distribution'][level] += count
+                stats["confidence_distribution"][level] += count
 
         # Calculate averages
-        if stats['total_comments'] > 0:
-            stats['average_products_per_comment'] = stats['total_products_found'] / stats['total_comments']
-            stats['average_processing_time'] = total_processing_time / stats['total_comments']
+        if stats["total_comments"] > 0:
+            stats["average_products_per_comment"] = (
+                stats["total_products_found"] / stats["total_comments"]
+            )
+            stats["average_processing_time"] = (
+                total_processing_time / stats["total_comments"]
+            )
 
         # Convert Counter to dict
-        stats['extraction_methods'] = dict(stats['extraction_methods'])
+        stats["extraction_methods"] = dict(stats["extraction_methods"])
 
         return stats
 
-    def suggest_products(self, partial_query: str, max_suggestions: int = 5) -> List[ProductMatch]:
+    def suggest_products(
+        self, partial_query: str, max_suggestions: int = 5
+    ) -> List[ProductMatch]:
         """
         Suggest products based on partial query (for autocomplete/suggestions)
 
@@ -456,25 +513,24 @@ class ProductExtractor:
 
             # Search for suggestions
             search_results = self.pinecone_manager.search_products(
-                query_embedding=query_embedding,
-                top_k=max_suggestions
+                query_embedding=query_embedding, top_k=max_suggestions
             )
 
             # Convert to ProductMatch objects
             suggestions = []
             for result in search_results:
-                metadata = result['metadata']
+                metadata = result["metadata"]
 
                 suggestion = ProductMatch(
-                    product_id=result['product_id'],
-                    name=metadata.get('name', ''),
-                    brand=metadata.get('brand', ''),
-                    category=metadata.get('category', ''),
-                    confidence=result['confidence'],
+                    product_id=result["product_id"],
+                    name=metadata.get("name", ""),
+                    brand=metadata.get("brand", ""),
+                    category=metadata.get("category", ""),
+                    confidence=result["confidence"],
                     match_reason="suggestion",
                     metadata=metadata,
-                    sku=metadata.get('sku'),
-                    price_range=metadata.get('price_range')
+                    sku=metadata.get("sku"),
+                    price_range=metadata.get("price_range"),
                 )
                 suggestions.append(suggestion)
 
@@ -492,33 +548,33 @@ class ProductExtractor:
             Health check results
         """
         health_status = {
-            'embedding_service': False,
-            'pinecone_connection': False,
-            'cache_status': {},
-            'errors': []
+            "embedding_service": False,
+            "pinecone_connection": False,
+            "cache_status": {},
+            "errors": [],
         }
 
         try:
             # Test embedding service
             test_embedding = self.embedding_service.generate_embedding("test")
-            health_status['embedding_service'] = test_embedding is not None
+            health_status["embedding_service"] = test_embedding is not None
 
             # Get cache status
-            health_status['cache_status'] = self.embedding_service.get_cache_stats()
+            health_status["cache_status"] = self.embedding_service.get_cache_stats()
 
         except Exception as e:
-            health_status['errors'].append(f"Embedding service error: {e}")
+            health_status["errors"].append(f"Embedding service error: {e}")
 
         try:
             # Test Pinecone connection
             pinecone_health = self.pinecone_manager.health_check()
-            health_status['pinecone_connection'] = pinecone_health['index_connection']
+            health_status["pinecone_connection"] = pinecone_health["index_connection"]
 
-            if pinecone_health['errors']:
-                health_status['errors'].extend(pinecone_health['errors'])
+            if pinecone_health["errors"]:
+                health_status["errors"].extend(pinecone_health["errors"])
 
         except Exception as e:
-            health_status['errors'].append(f"Pinecone connection error: {e}")
+            health_status["errors"].append(f"Pinecone connection error: {e}")
 
         return health_status
 
@@ -534,16 +590,18 @@ if __name__ == "__main__":
         health = extractor.health_check()
         print("🏥 Product Extractor Health Check:")
         print(f"   Embedding Service: {'✅' if health['embedding_service'] else '❌'}")
-        print(f"   Pinecone Connection: {'✅' if health['pinecone_connection'] else '❌'}")
+        print(
+            f"   Pinecone Connection: {'✅' if health['pinecone_connection'] else '❌'}"
+        )
 
-        if health['errors']:
+        if health["errors"]:
             print("   Errors:")
-            for error in health['errors']:
+            for error in health["errors"]:
                 print(f"     - {error}")
 
-        if health['cache_status']:
-            cache = health['cache_status']
-            print(f"\n💾 Cache Status:")
+        if health["cache_status"]:
+            cache = health["cache_status"]
+            print("\n💾 Cache Status:")
             print(f"   Cache size: {cache.get('cache_size', 0)} embeddings")
             print(f"   Model: {cache.get('model_used', 'Unknown')}")
 
@@ -554,7 +612,7 @@ if __name__ == "__main__":
             "Looking for a good RTX 4090 graphics card for gaming",
             "Need a new Ryzen 7 5800X processor for my build",
             "What's the best gaming keyboard under $100?",
-            "AMD Radeon RX 7900 XT vs RTX 4080 comparison"
+            "AMD Radeon RX 7900 XT vs RTX 4080 comparison",
         ]
 
         for i, comment in enumerate(sample_comments):
@@ -564,7 +622,9 @@ if __name__ == "__main__":
                 result = extractor.extract_products_from_comment(comment)
 
                 if result.products:
-                    print(f"     ✅ Found {len(result.products)} products in {result.processing_time:.2f}s")
+                    print(
+                        f"     ✅ Found {len(result.products)} products in {result.processing_time:.2f}s"
+                    )
                     for product in result.products[:2]:  # Show top 2
                         print(f"       - {product.name} ({product.confidence:.2f})")
                 else:
@@ -574,7 +634,7 @@ if __name__ == "__main__":
                 print(f"     ❌ Extraction failed: {e}")
 
         # Test suggestions
-        print(f"\n💡 Testing Product Suggestions:")
+        print("\n💡 Testing Product Suggestions:")
         suggestions = extractor.suggest_products("RTX 40", max_suggestions=3)
 
         if suggestions:

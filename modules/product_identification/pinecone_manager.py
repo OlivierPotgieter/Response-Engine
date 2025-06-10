@@ -5,12 +5,10 @@ Handles all Pinecone vector database operations
 
 import logging
 import time
-from typing import List, Dict, Optional, Tuple, Any
-from dataclasses import asdict
+from typing import List, Dict, Optional, Any
 import json
 
 from pinecone import Pinecone, ServerlessSpec
-from pinecone.exceptions import PineconeException
 
 from config import ProductIdentifierConfig
 from embedding_service import ProductEmbedding
@@ -29,7 +27,9 @@ class PineconeManager:
         self.config = ProductIdentifierConfig.get_pinecone_config()
 
         if not ProductIdentifierConfig.PINECONE_API_KEY:
-            raise ValueError("Pinecone API key not found. Please set PINECONE_API_KEY environment variable.")
+            raise ValueError(
+                "Pinecone API key not found. Please set PINECONE_API_KEY environment variable."
+            )
 
         self._initialize_pinecone()
 
@@ -55,7 +55,9 @@ class PineconeManager:
         try:
             # Check if index already exists
             existing_indexes = self.pc.list_indexes()
-            index_exists = any(idx.name == self.index_name for idx in existing_indexes.indexes)
+            index_exists = any(
+                idx.name == self.index_name for idx in existing_indexes.indexes
+            )
 
             if index_exists:
                 if force_recreate:
@@ -63,7 +65,9 @@ class PineconeManager:
                     self.pc.delete_index(self.index_name)
 
                     # Wait for deletion to complete
-                    while self.index_name in [idx.name for idx in self.pc.list_indexes().indexes]:
+                    while self.index_name in [
+                        idx.name for idx in self.pc.list_indexes().indexes
+                    ]:
                         logger.info("Waiting for index deletion to complete...")
                         time.sleep(5)
                 else:
@@ -76,16 +80,13 @@ class PineconeManager:
 
             self.pc.create_index(
                 name=self.index_name,
-                dimension=self.config['dimension'],
-                metric=self.config['metric'],
-                spec=ServerlessSpec(
-                    cloud='aws',
-                    region='us-east-1'
-                )
+                dimension=self.config["dimension"],
+                metric=self.config["metric"],
+                spec=ServerlessSpec(cloud="aws", region="us-east-1"),
             )
 
             # Wait for index to be ready
-            while not self.pc.describe_index(self.index_name).status['ready']:
+            while not self.pc.describe_index(self.index_name).status["ready"]:
                 logger.info("Waiting for index to be ready...")
                 time.sleep(5)
 
@@ -112,14 +113,18 @@ class PineconeManager:
 
             # Test connection by getting index stats
             stats = self.index.describe_index_stats()
-            logger.info(f"Connected to index {self.index_name}. Total vectors: {stats.total_vector_count}")
+            logger.info(
+                f"Connected to index {self.index_name}. Total vectors: {stats.total_vector_count}"
+            )
             return True
 
         except Exception as e:
             logger.error(f"Failed to connect to index {self.index_name}: {e}")
             return False
 
-    def upload_product_embeddings(self, product_embeddings: List[ProductEmbedding], batch_size: int = 100) -> bool:
+    def upload_product_embeddings(
+        self, product_embeddings: List[ProductEmbedding], batch_size: int = 100
+    ) -> bool:
         """
         Upload product embeddings to Pinecone
 
@@ -138,7 +143,9 @@ class PineconeManager:
             logger.warning("No product embeddings to upload")
             return True
 
-        logger.info(f"Uploading {len(product_embeddings)} product embeddings in batches of {batch_size}")
+        logger.info(
+            f"Uploading {len(product_embeddings)} product embeddings in batches of {batch_size}"
+        )
 
         try:
             # Prepare vectors for upload
@@ -146,9 +153,9 @@ class PineconeManager:
 
             for product_emb in product_embeddings:
                 vector_data = {
-                    'id': str(product_emb.product_id),
-                    'values': product_emb.embedding,
-                    'metadata': product_emb.metadata
+                    "id": str(product_emb.product_id),
+                    "values": product_emb.embedding,
+                    "metadata": product_emb.metadata,
                 }
                 vectors_to_upload.append(vector_data)
 
@@ -157,11 +164,13 @@ class PineconeManager:
             successful_uploads = 0
 
             for i in range(0, len(vectors_to_upload), batch_size):
-                batch = vectors_to_upload[i:i + batch_size]
+                batch = vectors_to_upload[i : i + batch_size]
                 batch_num = (i // batch_size) + 1
 
                 try:
-                    logger.info(f"Uploading batch {batch_num}/{total_batches} ({len(batch)} vectors)")
+                    logger.info(
+                        f"Uploading batch {batch_num}/{total_batches} ({len(batch)} vectors)"
+                    )
 
                     self.index.upsert(vectors=batch)
                     successful_uploads += len(batch)
@@ -173,7 +182,9 @@ class PineconeManager:
                     logger.error(f"Failed to upload batch {batch_num}: {e}")
                     continue
 
-            logger.info(f"Successfully uploaded {successful_uploads}/{len(product_embeddings)} product embeddings")
+            logger.info(
+                f"Successfully uploaded {successful_uploads}/{len(product_embeddings)} product embeddings"
+            )
 
             # Wait for index to update
             time.sleep(2)
@@ -188,7 +199,12 @@ class PineconeManager:
             logger.error(f"Failed to upload product embeddings: {e}")
             return False
 
-    def search_products(self, query_embedding: List[float], top_k: int = 10, filter_dict: Optional[Dict] = None) -> List[Dict]:
+    def search_products(
+        self,
+        query_embedding: List[float],
+        top_k: int = 10,
+        filter_dict: Optional[Dict] = None,
+    ) -> List[Dict]:
         """
         Search for products using query embedding
 
@@ -210,16 +226,16 @@ class PineconeManager:
                 vector=query_embedding,
                 top_k=top_k,
                 include_metadata=True,
-                filter=filter_dict
+                filter=filter_dict,
             )
 
             # Format results
             formatted_results = []
             for match in search_results.matches:
                 result = {
-                    'product_id': int(match.id),
-                    'confidence': float(match.score),
-                    'metadata': match.metadata
+                    "product_id": int(match.id),
+                    "confidence": float(match.score),
+                    "metadata": match.metadata,
                 }
                 formatted_results.append(result)
 
@@ -230,12 +246,15 @@ class PineconeManager:
             logger.error(f"Search failed: {e}")
             return []
 
-    def search_products_with_filters(self, query_embedding: List[float],
-                                   category: Optional[str] = None,
-                                   brand: Optional[str] = None,
-                                   price_range: Optional[str] = None,
-                                   enabled_only: bool = True,
-                                   top_k: int = 10) -> List[Dict]:
+    def search_products_with_filters(
+        self,
+        query_embedding: List[float],
+        category: Optional[str] = None,
+        brand: Optional[str] = None,
+        price_range: Optional[str] = None,
+        enabled_only: bool = True,
+        top_k: int = 10,
+    ) -> List[Dict]:
         """
         Search products with metadata filters
 
@@ -254,16 +273,16 @@ class PineconeManager:
         filter_dict = {}
 
         if enabled_only:
-            filter_dict['is_enabled'] = True
+            filter_dict["is_enabled"] = True
 
         if category:
-            filter_dict['category'] = {'$eq': category}
+            filter_dict["category"] = {"$eq": category}
 
         if brand:
-            filter_dict['brand'] = {'$eq': brand}
+            filter_dict["brand"] = {"$eq": brand}
 
         if price_range:
-            filter_dict['price_range'] = {'$eq': price_range}
+            filter_dict["price_range"] = {"$eq": price_range}
 
         return self.search_products(query_embedding, top_k, filter_dict)
 
@@ -287,9 +306,9 @@ class PineconeManager:
             if str(product_id) in result.vectors:
                 vector_data = result.vectors[str(product_id)]
                 return {
-                    'product_id': product_id,
-                    'metadata': vector_data.metadata,
-                    'embedding': vector_data.values
+                    "product_id": product_id,
+                    "metadata": vector_data.metadata,
+                    "embedding": vector_data.values,
                 }
             else:
                 return None
@@ -321,15 +340,19 @@ class PineconeManager:
                 return False
 
             # Update metadata
-            updated_metadata = current_data['metadata'].copy()
+            updated_metadata = current_data["metadata"].copy()
             updated_metadata.update(metadata_updates)
 
             # Upsert with updated metadata
-            self.index.upsert(vectors=[{
-                'id': str(product_id),
-                'values': current_data['embedding'],
-                'metadata': updated_metadata
-            }])
+            self.index.upsert(
+                vectors=[
+                    {
+                        "id": str(product_id),
+                        "values": current_data["embedding"],
+                        "metadata": updated_metadata,
+                    }
+                ]
+            )
 
             logger.info(f"Updated metadata for product {product_id}")
             return True
@@ -369,21 +392,21 @@ class PineconeManager:
             Dictionary with index statistics
         """
         if not self.index:
-            return {'error': 'No index connection available'}
+            return {"error": "No index connection available"}
 
         try:
             stats = self.index.describe_index_stats()
 
             return {
-                'total_vector_count': stats.total_vector_count,
-                'dimension': stats.dimension,
-                'index_fullness': stats.index_fullness,
-                'namespaces': dict(stats.namespaces) if stats.namespaces else {}
+                "total_vector_count": stats.total_vector_count,
+                "dimension": stats.dimension,
+                "index_fullness": stats.index_fullness,
+                "namespaces": dict(stats.namespaces) if stats.namespaces else {},
             }
 
         except Exception as e:
             logger.error(f"Failed to get index stats: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
     def list_products_by_category(self, category: str, limit: int = 100) -> List[Dict]:
         """
@@ -403,12 +426,10 @@ class PineconeManager:
         try:
             # Use a dummy query vector to get products by category
             # This is a workaround since Pinecone doesn't have a direct metadata-only query
-            dummy_vector = [0.0] * self.config['dimension']
+            dummy_vector = [0.0] * self.config["dimension"]
 
             results = self.search_products_with_filters(
-                query_embedding=dummy_vector,
-                category=category,
-                top_k=limit
+                query_embedding=dummy_vector, category=category, top_k=limit
             )
 
             return results
@@ -446,37 +467,39 @@ class PineconeManager:
             Health check results
         """
         health_status = {
-            'pinecone_client': False,
-            'index_connection': False,
-            'index_stats': None,
-            'errors': []
+            "pinecone_client": False,
+            "index_connection": False,
+            "index_stats": None,
+            "errors": [],
         }
 
         try:
             # Check Pinecone client
             if self.pc:
-                indexes = self.pc.list_indexes()
-                health_status['pinecone_client'] = True
+                self.pc.list_indexes()
+                health_status["pinecone_client"] = True
             else:
-                health_status['errors'].append("Pinecone client not initialized")
+                health_status["errors"].append("Pinecone client not initialized")
 
         except Exception as e:
-            health_status['errors'].append(f"Pinecone client error: {e}")
+            health_status["errors"].append(f"Pinecone client error: {e}")
 
         try:
             # Check index connection
             if self.index:
                 stats = self.get_index_stats()
-                if 'error' not in stats:
-                    health_status['index_connection'] = True
-                    health_status['index_stats'] = stats
+                if "error" not in stats:
+                    health_status["index_connection"] = True
+                    health_status["index_stats"] = stats
                 else:
-                    health_status['errors'].append(f"Index stats error: {stats['error']}")
+                    health_status["errors"].append(
+                        f"Index stats error: {stats['error']}"
+                    )
             else:
-                health_status['errors'].append("Index not connected")
+                health_status["errors"].append("Index not connected")
 
         except Exception as e:
-            health_status['errors'].append(f"Index connection error: {e}")
+            health_status["errors"].append(f"Index connection error: {e}")
 
         return health_status
 
@@ -498,13 +521,13 @@ class PineconeManager:
             # This is a simplified backup - in production you'd want to backup all vectors
             stats = self.get_index_stats()
             backup_data = {
-                'index_name': self.index_name,
-                'config': self.config,
-                'stats': stats,
-                'backup_timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
+                "index_name": self.index_name,
+                "config": self.config,
+                "stats": stats,
+                "backup_timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
             }
 
-            with open(output_file, 'w') as f:
+            with open(output_file, "w") as f:
                 json.dump(backup_data, f, indent=2)
 
             logger.info(f"Index metadata backed up to {output_file}")
@@ -528,14 +551,14 @@ if __name__ == "__main__":
         print(f"   Client: {'✅' if health['pinecone_client'] else '❌'}")
         print(f"   Index: {'✅' if health['index_connection'] else '❌'}")
 
-        if health['errors']:
+        if health["errors"]:
             print("   Errors:")
-            for error in health['errors']:
+            for error in health["errors"]:
                 print(f"     - {error}")
 
-        if health['index_stats']:
-            stats = health['index_stats']
-            print(f"\n📊 Index Statistics:")
+        if health["index_stats"]:
+            stats = health["index_stats"]
+            print("\n📊 Index Statistics:")
             print(f"   Total vectors: {stats.get('total_vector_count', 0)}")
             print(f"   Dimension: {stats.get('dimension', 0)}")
             print(f"   Index fullness: {stats.get('index_fullness', 0):.2%}")
