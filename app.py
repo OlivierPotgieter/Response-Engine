@@ -446,11 +446,11 @@ if __name__ == "__main__":
 
     missing_vars = [var for var in required_env_vars if not os.getenv(var)]
     if missing_vars:
-        logger.error(f"Missing required environment variables: {missing_vars}")
-        logger.error("Please check your .env file")
-        exit(1)
-
-    logger.info("✅ All required environment variables found")
+        logger.warning(f"Missing environment variables: {missing_vars}")
+        logger.warning("Some endpoints may not work properly without these variables")
+        logger.warning("Continuing startup for development/testing purposes")
+    else:
+        logger.info("✅ All required environment variables found")
 
     # Test connections on startup
     try:
