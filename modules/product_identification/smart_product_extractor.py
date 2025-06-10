@@ -9,10 +9,10 @@ import time
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 
-from embedding_service import EmbeddingService
-from pinecone_manager import PineconeManager
-from category_intelligence import CategoryDetector, CategoryIntelligenceManager
-from config import ProductIdentifierConfig
+from .embedding_service import EmbeddingService
+from .pinecone_manager import PineconeManager
+from .category_intelligence import CategoryDetector, CategoryIntelligenceManager
+from .config import ProductIdentifierConfig
 
 logger = logging.getLogger(__name__)
 

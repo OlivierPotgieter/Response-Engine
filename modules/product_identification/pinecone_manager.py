@@ -10,8 +10,8 @@ import json
 
 from pinecone import Pinecone, ServerlessSpec
 
-from config import ProductIdentifierConfig
-from embedding_service import ProductEmbedding
+from .config import ProductIdentifierConfig
+from .embedding_service import ProductEmbedding
 
 logger = logging.getLogger(__name__)
 
