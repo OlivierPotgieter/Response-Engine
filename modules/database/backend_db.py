@@ -213,6 +213,203 @@ class BackendDatabase:
 
         return results
 
+    #Adding a new few new functions here :
+    #get_category_intelligence_data
+    #_extract_category_keywords
+    #_extract_category_patterns
+
+    def get_category_intelligence_data(self) -> Dict:
+        """
+        Build category intelligence from Products and Manufacturers tables
+        Replaces category_intelligence.json with live database queries
+
+        Returns:
+            Dictionary with category intelligence data
+        """
+        self._ensure_connection()
+        cursor = self.connection.cursor(dictionary=True)
+
+        try:
+            logger.info("🏗️ Building category intelligence from database...")
+
+            # Get all categories with their products and manufacturers
+            query = """
+                    SELECT p.Category, \
+                           p.Name   as ProductName, \
+                           p.SearchText, \
+                           m.Name   as ManufacturerName, \
+                           COUNT(*) as ProductCount
+                    FROM Products p
+                             LEFT JOIN Manufacturers m ON p.ManufacturerId = m.Id
+                    WHERE p.IsEnabled = 1
+                      AND p.Category IS NOT NULL
+                      AND p.Category != ''
+              AND p.Name IS NOT NULL
+              AND p.Name != ''
+                    GROUP BY p.Category, m.Name, p.Name, p.SearchText
+                    ORDER BY p.Category, ProductCount DESC \
+                    """
+
+            cursor.execute(query)
+            results = cursor.fetchall()
+
+            if not results:
+                logger.warning("No category data found in database")
+                return {}
+
+            # Process results into category intelligence structure
+            categories_data = {}
+            category_products = {}
+
+            for row in results:
+                category = row['Category']
+                manufacturer = row['ManufacturerName'] or 'Unknown'
+                product_name = row['ProductName'] or ''
+                search_text = row['SearchText'] or ''
+
+                # Initialize category if not exists
+                if category not in categories_data:
+                    categories_data[category] = {
+                        'manufacturers': set(),
+                        'product_names': [],
+                        'search_texts': []
+                    }
+                    category_products[category] = 0
+
+                # Collect data for this category
+                categories_data[category]['manufacturers'].add(manufacturer.lower())
+                categories_data[category]['product_names'].append(product_name.lower())
+                if search_text:
+                    categories_data[category]['search_texts'].append(search_text.lower())
+                category_products[category] += 1
+
+            # Build final intelligence structure
+            intelligence = {
+                "categories": {},
+                "created": datetime.now().isoformat(),
+                "source": "live_database",
+                "total_categories": len(categories_data),
+                "note": "Category intelligence generated from Products and Manufacturers tables"
+            }
+
+            for category, data in categories_data.items():
+                # Extract keywords from product names and search text
+                keywords = self._extract_category_keywords(
+                    data['product_names'] + data['search_texts']
+                )
+
+                # Extract patterns (model numbers, technical specs)
+                patterns = self._extract_category_patterns(
+                    data['product_names'] + data['search_texts']
+                )
+
+                # Convert manufacturers set to sorted list
+                manufacturers = sorted(list(data['manufacturers']))
+
+                intelligence["categories"][category] = {
+                    "keywords": keywords,
+                    "patterns": patterns,
+                    "manufacturers": manufacturers,  # Changed from 'brands' to 'manufacturers'
+                    "product_count": category_products[category]
+                }
+
+            logger.info(f"✅ Built category intelligence for {len(intelligence['categories'])} categories")
+            return intelligence
+
+        except Error as e:
+            logger.error(f"❌ Database error building category intelligence: {e}")
+            return {}
+        except Exception as e:
+            logger.error(f"❌ Error building category intelligence: {e}")
+            return {}
+        finally:
+            cursor.close()
+
+    def _extract_category_keywords(self, texts: List[str]) -> List[str]:
+        """
+        Extract relevant keywords from product names and search texts
+
+        Args:
+            texts: List of product names and search texts
+
+        Returns:
+            List of relevant keywords for the category
+        """
+        import re
+        from collections import Counter
+
+        # Common tech keywords that might be relevant
+        tech_keywords = {
+            'gpu', 'graphics', 'card', 'video', 'gaming', 'rtx', 'gtx', 'radeon', 'geforce',
+            'cpu', 'processor', 'intel', 'amd', 'ryzen', 'core',
+            'motherboard', 'mobo', 'mainboard', 'socket', 'chipset',
+            'memory', 'ram', 'ddr4', 'ddr5', 'dimm',
+            'storage', 'ssd', 'hdd', 'nvme', 'drive', 'hard', 'solid', 'state',
+            'monitor', 'display', 'screen', '4k', '1440p', '1080p', 'hz', 'curved',
+            'keyboard', 'mechanical', 'optical', 'wireless', 'rgb',
+            'mouse', 'laser', 'sensor',
+            'power', 'supply', 'psu', 'watt', 'modular',
+            'case', 'tower', 'chassis', 'atx', 'mini', 'micro'
+        }
+
+        # Count word frequency across all texts
+        word_counts = Counter()
+
+        for text in texts:
+            if not text:
+                continue
+            # Extract words (alphanumeric, 3+ characters)
+            words = re.findall(r'\b[a-zA-Z0-9]{3,}\b', text.lower())
+            for word in words:
+                if word in tech_keywords:
+                    word_counts[word] += 1
+
+        # Return most common relevant keywords (top 15)
+        return [word for word, count in word_counts.most_common(15)]
+
+    def _extract_category_patterns(self, texts: List[str]) -> List[str]:
+        """
+        Extract technical patterns (model numbers, specs) from texts
+
+        Args:
+            texts: List of product names and search texts
+
+        Returns:
+            List of regex patterns found in the category
+        """
+        import re
+
+        patterns = set()
+
+        # Common tech patterns
+        pattern_regexes = [
+            r'\b(rtx|gtx)\s*\d{4}\b',  # RTX 4090, GTX 1080
+            r'\b(radeon)\s*(rx|r)\s*\d{4}\b',  # Radeon RX 7900
+            r'\b(ryzen)\s*\d+\s*\d{4}[a-z]*\b',  # Ryzen 7 5800X
+            r'\b(core)\s*(i[3579])\s*\d{4,5}[a-z]*\b',  # Core i7-12700K
+            r'\b\d+gb\b',  # Memory/storage sizes
+            r'\b\d+tb\b',  # Storage sizes
+            r'\b(ddr[45])\s*\d{4}\b',  # Memory types
+            r'\b\d+hz\b',  # Monitor refresh rates
+            r'\b\d+w\b',  # Power ratings
+            r'\b\d+\"\b',  # Screen sizes
+        ]
+
+        for text in texts:
+            if not text:
+                continue
+            text_lower = text.lower()
+
+            for pattern_regex in pattern_regexes:
+                matches = re.finditer(pattern_regex, text_lower)
+                for match in matches:
+                    # Store the actual pattern found, not the regex
+                    patterns.add(match.group(0))
+
+        # Return sorted list of unique patterns (limit to prevent bloat)
+        return sorted(list(patterns))[:20]
+
+
     def close(self):
         """Close database connection"""
         if self.connection and self.connection.is_connected():
@@ -322,6 +519,23 @@ class ProductLookupService:
 
 
 # Convenience functions for single operations
+
+#Adding new get_category_intelligence_from_database
+def get_category_intelligence_from_database() -> Dict:
+    """
+    Convenience function to get category intelligence from database
+    Replaces category_intelligence.json file dependency
+
+    Returns:
+        Dict with category intelligence data from live database
+    """
+    db = BackendDatabase()
+    try:
+        return db.get_category_intelligence_data()
+    finally:
+        db.close()
+
+
 def get_product_data(product_id: str, is_alternative: bool = False) -> Optional[Dict]:
     """
     Convenience function to get single product data

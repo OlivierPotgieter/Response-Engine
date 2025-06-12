@@ -49,35 +49,88 @@ class SmartExtractionResult:
 class SmartProductExtractor:
     """Category-aware product extractor using learned intelligence"""
 
+    #removed old Init going to replace
     def __init__(self):
-        """Initialize the smart extractor"""
-        logger.info("🧠 Initializing Smart Product Extractor...")
+        """Initialize the smart extractor with database-sourced intelligence"""
+        logger.info("Initializing Smart Product Extractor with database intelligence...")
 
         # Initialize core services
         self.embedding_service = EmbeddingService()
         self.pinecone_manager = PineconeManager()
         self.config = ProductIdentifierConfig.SEARCH_CONFIG
 
-        # Load category intelligence
-        self.category_intelligence = CategoryIntelligenceManager.load_intelligence()
+        # Load product intelligence from database
+        self.product_intelligence = self._load_product_intelligence()
+
+        # Load category intelligence from database
+        self.category_intelligence = self._load_category_intelligence()
         if not self.category_intelligence:
-            logger.warning(
-                "⚠️ No category intelligence found. Run category_intelligence.py first!"
-            )
+            logger.warning("⚠️ No category intelligence found in database!")
             self.category_detector = None
         else:
             self.category_detector = CategoryDetector(self.category_intelligence)
-            logger.info(
-                f"✅ Loaded intelligence for {len(self.category_intelligence)} categories"
-            )
+            categories_count = len(self.category_intelligence.get('categories', {}))
+            logger.info(f"✅ Loaded category intelligence: {categories_count} categories from database")
 
-        # Load embedding cache
-        self.embedding_service.load_embeddings_cache()
+        # REMOVE: Load embedding cache (no longer needed)
+        # self.embedding_service.load_embeddings_cache()
 
         # Connect to Pinecone
         if not self.pinecone_manager.connect_to_index():
             logger.error("❌ Failed to connect to Pinecone")
             raise Exception("Pinecone connection failed")
+
+    #Adding new _load_product_intelligence def
+    def _load_category_intelligence(self) -> Optional[Dict]:
+        """
+        NEW: Load category intelligence from database instead of file
+
+        Returns:
+            Category intelligence data from database
+        """
+        try:
+            logger.info("📂 Loading category intelligence from database...")
+            intelligence = CategoryIntelligenceManager.load_intelligence()
+
+            if intelligence and intelligence.get('categories'):
+                categories_count = len(intelligence['categories'])
+                logger.info(f"✅ Loaded category intelligence: {categories_count} categories")
+                return intelligence
+            else:
+                logger.error("❌ Failed to load category intelligence from database")
+                return None
+
+        except Exception as e:
+            logger.error(f"❌ Error loading category intelligence: {e}")
+            return None
+
+    #Adding new refresh_product_intelligence
+    def refresh_category_intelligence(self) -> bool:
+        """
+        NEW: Refresh category intelligence from database
+
+        Returns:
+            True if refresh successful, False otherwise
+        """
+        try:
+            logger.info("🔄 Refreshing category intelligence from database...")
+
+            # Force fresh load from database
+            fresh_intelligence = CategoryIntelligenceManager.refresh_intelligence()
+
+            if fresh_intelligence and fresh_intelligence.get('categories'):
+                self.category_intelligence = fresh_intelligence
+                # Recreate detector with fresh data
+                self.category_detector = CategoryDetector(self.category_intelligence)
+                logger.info("✅ Category intelligence refreshed successfully")
+                return True
+            else:
+                logger.error("❌ Failed to refresh category intelligence")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ Error refreshing category intelligence: {e}")
+            return False
 
     def extract_products_smart(
         self, comment: str, max_products: int = 5

@@ -34,7 +34,7 @@ class EmbeddingService:
         """Initialize the embedding service"""
         self.client = OpenAI(api_key=ProductIdentifierConfig.OPENAI_API_KEY)
         self.config = ProductIdentifierConfig.get_embedding_config()
-        self.embeddings_cache = {}
+        # REMOVE self.embeddings_cache = {}
 
         if not ProductIdentifierConfig.OPENAI_API_KEY:
             raise ValueError(
@@ -246,11 +246,10 @@ class EmbeddingService:
 
         return []
 
-    def generate_embedding(
-        self, text: str, max_retries: int = 3
-    ) -> Optional[List[float]]:
+    def generate_embedding(self, text: str, max_retries: int = 3) -> Optional[List[float]]:
         """
         Generate embedding for a single text
+        UPDATED: No more caching, always generate fresh
 
         Args:
             text: Text to embed
@@ -263,43 +262,37 @@ class EmbeddingService:
             logger.warning("Empty text provided for embedding")
             return None
 
-        # Check cache first
-        text_hash = hash(text)
-        if text_hash in self.embeddings_cache:
-            return self.embeddings_cache[text_hash]
+        # REMOVE: Cache checking
 
         for attempt in range(max_retries):
             try:
                 response = self.client.embeddings.create(
-                    model=self.config["model"], input=text, encoding_format="float"
+                    model=self.config['model'],
+                    input=text,
+                    encoding_format="float"
                 )
 
                 embedding = response.data[0].embedding
 
-                # Cache the result
-                self.embeddings_cache[text_hash] = embedding
+                # REMOVE: Cache storage
+                # self.embeddings_cache[text_hash] = embedding
 
                 return embedding
 
             except Exception as e:
-                logger.warning(
-                    f"Embedding generation attempt {attempt + 1} failed: {e}"
-                )
+                logger.warning(f"Embedding generation attempt {attempt + 1} failed: {e}")
                 if attempt < max_retries - 1:
-                    time.sleep(self.config["retry_delay"] * (attempt + 1))
+                    time.sleep(self.config['retry_delay'] * (attempt + 1))
                 else:
-                    logger.error(
-                        f"Failed to generate embedding after {max_retries} attempts: {e}"
-                    )
+                    logger.error(f"Failed to generate embedding after {max_retries} attempts: {e}")
                     return None
 
         return None
-
-    def generate_batch_embeddings(
-        self, texts: List[str], batch_size: Optional[int] = None
-    ) -> List[Optional[List[float]]]:
+    # Updated below def
+    def generate_batch_embeddings(self, texts: List[str], batch_size: Optional[int] = None) -> List[Optional[List[float]]]:
         """
         Generate embeddings for multiple texts in batches
+        UPDATED: No more caching, always generate fresh
 
         Args:
             texts: List of texts to embed
@@ -312,30 +305,22 @@ class EmbeddingService:
             return []
 
         if batch_size is None:
-            batch_size = self.config["batch_size"]
+            batch_size = self.config['batch_size']
 
         all_embeddings = []
         total_batches = (len(texts) + batch_size - 1) // batch_size
 
-        logger.info(
-            f"Generating embeddings for {len(texts)} texts in {total_batches} batches"
-        )
+        logger.info(f"Generating embeddings for {len(texts)} texts in {total_batches} batches")
 
         for i in range(0, len(texts), batch_size):
-            batch_texts = texts[i : i + batch_size]
+            batch_texts = texts[i:i + batch_size]
             batch_num = (i // batch_size) + 1
 
-            logger.info(
-                f"Processing batch {batch_num}/{total_batches} ({len(batch_texts)} texts)"
-            )
+            logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch_texts)} texts)")
 
             try:
                 # Filter out empty texts
-                valid_texts = [
-                    (idx, text)
-                    for idx, text in enumerate(batch_texts)
-                    if text and text.strip()
-                ]
+                valid_texts = [(idx, text) for idx, text in enumerate(batch_texts) if text and text.strip()]
 
                 if not valid_texts:
                     all_embeddings.extend([None] * len(batch_texts))
@@ -343,9 +328,9 @@ class EmbeddingService:
 
                 # Generate embeddings for valid texts
                 response = self.client.embeddings.create(
-                    model=self.config["model"],
+                    model=self.config['model'],
                     input=[text for _, text in valid_texts],
-                    encoding_format="float",
+                    encoding_format="float"
                 )
 
                 # Map embeddings back to original positions
@@ -354,9 +339,7 @@ class EmbeddingService:
                     embedding = response.data[result_idx].embedding
                     batch_embeddings[original_idx] = embedding
 
-                    # Cache the result
-                    text_hash = hash(text)
-                    self.embeddings_cache[text_hash] = embedding
+                    # REMOVE: Cache storage
 
                 all_embeddings.extend(batch_embeddings)
 
@@ -364,9 +347,7 @@ class EmbeddingService:
                 time.sleep(0.1)
 
             except Exception as e:
-                logger.error(
-                    f"Batch embedding generation failed for batch {batch_num}: {e}"
-                )
+                logger.error(f"Batch embedding generation failed for batch {batch_num}: {e}")
                 all_embeddings.extend([None] * len(batch_texts))
 
         success_count = sum(1 for emb in all_embeddings if emb is not None)
@@ -498,13 +479,17 @@ class EmbeddingService:
             logger.warning(f"Failed to load embeddings cache: {e}")
             self.embeddings_cache = {}
             return False
-
+    #Reworked need to remove later, but it will break script.
     def get_cache_stats(self) -> Dict[str, Any]:
-        """Get statistics about embeddings cache"""
+        """
+        UPDATED: Return cache stats (no actual cache)
+        This is more of a placeholder
+        """
         return {
-            "cache_size": len(self.embeddings_cache),
-            "model_used": self.config["model"],
-            "dimension": self.config["dimension"],
+            'cache_size': 0,  # No cache anymore
+            'model_used': self.config['model'],
+            'dimension': self.config['dimension'],
+            'note': 'Caching disabled - embeddings stored in Pinecone'
         }
 
 

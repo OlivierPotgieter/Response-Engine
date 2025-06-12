@@ -177,6 +177,68 @@ class MainDatabase:
         finally:
             cursor.close()
 
+    # Added new function to handle Database based queries instead of from file
+    def get_response_example_by_id(self, request_id: int) -> Optional[Dict]:
+        """
+        Get response example by ID for Pinecone similarity matching
+        Replaces the labeled_full_replies.csv file with direct database query
+
+        Args:
+            request_id: The ID to look up (maps 1:1 with Pinecone index IDs)
+
+        Returns:
+            Dict with customer_comment and full_reply_text if found, None otherwise
+        """
+        self._ensure_connection()
+        cursor = self.connection.cursor(dictionary=True)
+
+        try:
+            # Join conversion table with custom_body table to get complete examples
+            query = """
+                    SELECT c.id, \
+                           c.customer_comment, \
+                           cb.body as full_reply_html
+                    FROM wootware_inventorymanagement_availability_conversion c
+                             INNER JOIN wootware_inventorymanagement_availability_custom_body cb ON c.id = cb.id
+                    WHERE c.id = %s
+                      AND c.customer_comment IS NOT NULL
+                      AND c.customer_comment != ''
+              AND cb.body IS NOT NULL 
+              AND cb.body != '' \
+                    """
+
+            cursor.execute(query, (request_id,))
+            result = cursor.fetchone()
+
+            if not result:
+                logger.debug(f"No response example found for ID {request_id}")
+                return None
+
+            # Clean HTML from the body using BeautifulSoup (matching existing pattern)
+            raw_html = result.get('full_reply_html', '')
+            if raw_html:
+                soup = BeautifulSoup(raw_html, 'html.parser')
+                cleaned_text = soup.get_text(separator=' ', strip=True)
+            else:
+                cleaned_text = ''
+
+            logger.debug(f"Found response example for ID {request_id}, cleaned length: {len(cleaned_text)}")
+
+            return {
+                'id': result['id'],
+                'customer_comment': result['customer_comment'],
+                'full_reply_text': cleaned_text
+            }
+
+        except Error as e:
+            logger.error(f"Database error getting response example for ID {request_id}: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting response example for ID {request_id}: {e}")
+            return None
+        finally:
+            cursor.close()
+
     def get_key_fields(self, customer_data: Dict) -> Dict:
         """
         Extract key fields from customer data for easy access
@@ -206,6 +268,25 @@ class MainDatabase:
 
 
 # Convenience function for single operations
+
+#Adding Convenience function here :
+def get_response_example_by_id(request_id: int) -> Optional[Dict]:
+    """
+    Convenience function to get response example by ID
+    Replaces CSV file dependency with direct database query
+
+    Args:
+        request_id: The ID to look up
+
+    Returns:
+        Dict with response example data if found, None otherwise
+    """
+    db = MainDatabase()
+    try:
+        return db.get_response_example_by_id(request_id)
+    finally:
+        db.close()
+
 def get_customer_request_data(request_id: str) -> Dict:
     """
     Convenience function to get customer request data

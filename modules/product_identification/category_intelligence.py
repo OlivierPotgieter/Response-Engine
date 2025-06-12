@@ -247,130 +247,192 @@ class CategoryDetector:
             "note": "Default category intelligence for product identification",
         }
 
-
+#Replacing the entire Class CategoryIntelligenceManager
 class CategoryIntelligenceManager:
-    """Manages category intelligence data"""
+    """Manages category intelligence data from database instead of files"""
 
     @staticmethod
-    def save_intelligence(
-        intelligence: Dict, filepath: str = "category_intelligence.json"
-    ) -> bool:
+    def load_intelligence(filepath: str = None) -> Optional[Dict]:
         """
-        Save category intelligence to file
+        UPDATED: Load category intelligence from database instead of file
 
         Args:
-            intelligence: Intelligence data to save
-            filepath: Path to save file
+            filepath: Ignored (kept for backwards compatibility)
 
         Returns:
-            True if successful, False otherwise
+            Intelligence data from database or None if failed
         """
         try:
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(intelligence, f, indent=2, ensure_ascii=False)
+            # Import here to avoid circular imports
+            from ..database import get_category_intelligence_from_database
 
-            logger.info(f"Category intelligence saved to {filepath}")
-            return True
+            logger.info("📊 Loading category intelligence from database...")
+            intelligence = get_category_intelligence_from_database()
+
+            if intelligence and intelligence.get('categories'):
+                categories_count = len(intelligence['categories'])
+                logger.info(f"✅ Category intelligence loaded from database: {categories_count} categories")
+                return intelligence
+            else:
+                logger.warning("❌ No category intelligence data found in database")
+                return None
 
         except Exception as e:
-            logger.error(f"Failed to save category intelligence: {e}")
-            return False
-
-    @staticmethod
-    def load_intelligence(
-        filepath: str = "category_intelligence.json",
-    ) -> Optional[Dict]:
-        """
-        Load category intelligence from file
-
-        Args:
-            filepath: Path to intelligence file
-
-        Returns:
-            Intelligence data or None if failed
-        """
-        try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                intelligence = json.load(f)
-
-            logger.info(f"Category intelligence loaded from {filepath}")
-            return intelligence
-
-        except FileNotFoundError:
-            logger.info(f"Category intelligence file not found: {filepath}")
-            return None
-        except Exception as e:
-            logger.error(f"Failed to load category intelligence: {e}")
+            logger.error(f"❌ Failed to load category intelligence from database: {e}")
             return None
 
     @staticmethod
-    def create_default_intelligence(
-        filepath: str = "category_intelligence.json",
-    ) -> Dict:
+    def save_intelligence(intelligence: Dict, filepath: str = None) -> bool:
         """
-        Create default category intelligence file
+        DEPRECATED: Saving to file no longer supported
+        Category intelligence is now generated from database on-demand
 
         Args:
-            filepath: Path to save file
+            intelligence: Intelligence data (ignored)
+            filepath: File path (ignored)
 
         Returns:
-            Created intelligence data
+            False (operation not supported)
         """
-        detector = CategoryDetector()
-        intelligence = detector.intelligence
+        logger.warning("⚠️ save_intelligence() is deprecated - category intelligence is now database-driven")
+        logger.info("💡 Use get_category_intelligence_from_database() to get fresh data")
+        return False
 
-        # Save to file
-        CategoryIntelligenceManager.save_intelligence(intelligence, filepath)
+    @staticmethod
+    def create_default_intelligence(filepath: str = None) -> Dict:
+        """
+        ✅ UPDATED: Get intelligence from database instead of creating default file
 
-        return intelligence
+        Args:
+            filepath: Ignored (kept for backwards compatibility)
+
+        Returns:
+            Intelligence data from database
+        """
+        try:
+            from ..database import get_category_intelligence_from_database
+
+            logger.info("🏗️ Creating category intelligence from database...")
+            intelligence = get_category_intelligence_from_database()
+
+            if intelligence:
+                logger.info("✅ Category intelligence created from database")
+                return intelligence
+            else:
+                logger.error("❌ Failed to create category intelligence from database")
+                return {}
+
+        except Exception as e:
+            logger.error(f"❌ Error creating category intelligence: {e}")
+            return {}
+
+    @staticmethod
+    def refresh_intelligence() -> Dict:
+        """
+        ✅ NEW: Force refresh category intelligence from database
+
+        Returns:
+            Fresh intelligence data from database
+        """
+        try:
+            from ..database import get_category_intelligence_from_database
+
+            logger.info("🔄 Refreshing category intelligence from database...")
+            intelligence = get_category_intelligence_from_database()
+
+            if intelligence:
+                categories_count = len(intelligence.get('categories', {}))
+                logger.info(f"✅ Category intelligence refreshed: {categories_count} categories")
+                return intelligence
+            else:
+                logger.error("❌ Failed to refresh category intelligence")
+                return {}
+
+        except Exception as e:
+            logger.error(f"❌ Error refreshing category intelligence: {e}")
+            return {}
 
 
 # Convenience functions
-def detect_categories_from_query(
-    query: str, intelligence_file: str = "category_intelligence.json"
-) -> Dict[str, float]:
+
+#RReplacing the Convenience functions
+def detect_categories_from_query(query: str, intelligence_file: str = None) -> Dict[str, float]:
     """
-    Convenience function to detect categories from a query
+    UPDATED: Detect categories from query using database intelligence
 
     Args:
         query: Customer query text
-        intelligence_file: Path to intelligence file
+        intelligence_file: Ignored (kept for backwards compatibility)
 
     Returns:
         Dict mapping category names to confidence scores
     """
-    # Try to load intelligence from file
-    intelligence = CategoryIntelligenceManager.load_intelligence(intelligence_file)
+    # Load intelligence from database instead of file
+    intelligence = CategoryIntelligenceManager.load_intelligence()
 
-    # Create detector with loaded or default intelligence
+    # Create detector with database intelligence
     detector = CategoryDetector(intelligence)
 
     return detector.detect_categories(query)
 
 
-def initialize_category_intelligence(
-    filepath: str = "category_intelligence.json",
-) -> bool:
+def initialize_category_intelligence(filepath: str = None) -> bool:
     """
-    Initialize category intelligence system with default data
+    UPDATED: Validate category intelligence from database
 
     Args:
-        filepath: Path to save intelligence file
+        filepath: Ignored (kept for backwards compatibility)
 
     Returns:
-        True if successful, False otherwise
+        True if database intelligence is available, False otherwise
     """
     try:
-        intelligence = CategoryIntelligenceManager.create_default_intelligence(filepath)
-        logger.info(
-            f"Category intelligence initialized with {len(intelligence.get('categories', {}))} categories"
-        )
-        return True
+        intelligence = CategoryIntelligenceManager.load_intelligence()
+
+        if intelligence and intelligence.get('categories'):
+            categories_count = len(intelligence['categories'])
+            logger.info(f"✅ Category intelligence validated: {categories_count} categories from database")
+            return True
+        else:
+            logger.error("❌ Category intelligence validation failed - no data from database")
+            return False
 
     except Exception as e:
-        logger.error(f"Failed to initialize category intelligence: {e}")
+        logger.error(f"❌ Failed to validate category intelligence: {e}")
         return False
 
+#Newly added
+def refresh_category_intelligence() -> Dict:
+    """
+    NEW: Refresh category intelligence from database
+
+    Returns:
+        Dict with refresh results
+    """
+    try:
+        intelligence = CategoryIntelligenceManager.refresh_intelligence()
+
+        if intelligence:
+            return {
+                'success': True,
+                'message': 'Category intelligence refreshed from database',
+                'categories': len(intelligence.get('categories', {})),
+                'source': 'live_database'
+            }
+        else:
+            return {
+                'success': False,
+                'message': 'Failed to refresh category intelligence from database',
+                'categories': 0
+            }
+
+    except Exception as e:
+        logger.error(f"Error refreshing category intelligence: {e}")
+        return {
+            'success': False,
+            'message': f'Refresh failed: {str(e)}',
+            'categories': 0
+        }
 
 if __name__ == "__main__":
     # Test the category detection

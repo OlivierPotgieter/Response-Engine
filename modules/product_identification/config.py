@@ -34,8 +34,13 @@ class ProductIdentifierConfig:
     PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "product-identifier")
 
     # Product Intelligence Settings
-    INTELLIGENCE_FILE_PATH = "product_intelligence.json"
-    EMBEDDINGS_CACHE_PATH = "product_embeddings_cache.pkl"
+    # REMOVED : INTELLIGENCE_FILE_PATH = "product_intelligence.json"
+
+    #Added
+    INTELLIGENCE_CACHE_DURATION = 3600  # 1 hour in seconds
+    INTELLIGENCE_SOURCE = "database"  # Always use database as source
+
+   # REMOVE : EMBEDDINGS_CACHE_PATH = "product_embeddings_cache.pkl"
 
     # Search Configuration
     SEARCH_CONFIG = {

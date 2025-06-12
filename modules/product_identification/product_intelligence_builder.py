@@ -596,34 +596,76 @@ class ProductIntelligenceBuilder:
         }
 
         return stats
+    #Removed the following two functions :
+    #save_intelligence
+    #load_intelligence
 
-    def save_intelligence(self, filepath: str = "product_intelligence.json") -> bool:
-        """Save intelligence to JSON file"""
+    #Will add the following functions :
+    #get_intelligence_from_database
+    #cache_intelligence_in_memory
+    #invalidate_cache
+    def get_intelligence_from_database(self) -> Dict:
+        """
+        Get product intelligence directly from database (replaces file loading)
+
+        Returns:
+            Intelligence dictionary built from current database state
+        """
         try:
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(
-                    self.intelligence, f, indent=2, ensure_ascii=False, default=str
-                )
+            logger.info("🔄 Building product intelligence from live database data...")
 
-            logger.info(f"💾 Intelligence saved to {filepath}")
-            return True
+            # Always build fresh from database - no file dependency
+            intelligence = self.build_complete_intelligence()
+
+            if intelligence and "error" not in intelligence:
+                logger.info("✅ Product intelligence built successfully from database")
+                return intelligence
+            else:
+                logger.error("❌ Failed to build product intelligence from database")
+                return {}
 
         except Exception as e:
-            logger.error(f"❌ Failed to save intelligence: {e}")
-            return False
+            logger.error(f"❌ Error building intelligence from database: {e}")
+            return {}
 
-    def load_intelligence(self, filepath: str = "product_intelligence.json") -> bool:
-        """Load intelligence from JSON file"""
+    def cache_intelligence_in_memory(self) -> Dict:
+        """
+        Build and cache intelligence in memory with timestamp for freshness checking
+
+        Returns:
+            Cached intelligence data with metadata
+        """
         try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                self.intelligence = json.load(f)
+            # Check if we have recent cached data
+            if (hasattr(self, '_cached_intelligence') and
+                    hasattr(self, '_cache_timestamp') and
+                    (datetime.now() - self._cache_timestamp).total_seconds() < 3600):  # 1 hour cache
 
-            logger.info(f"📁 Intelligence loaded from {filepath}")
-            return True
+                logger.info("📋 Using cached product intelligence (less than 1 hour old)")
+                return self._cached_intelligence
+
+            # Build fresh intelligence from database
+            logger.info("🏗️ Building fresh product intelligence from database...")
+            intelligence = self.get_intelligence_from_database()
+
+            # Cache the result
+            self._cached_intelligence = intelligence
+            self._cache_timestamp = datetime.now()
+
+            logger.info(f"💾 Cached product intelligence with {len(intelligence.get('products', []))} products")
+            return intelligence
 
         except Exception as e:
-            logger.error(f"❌ Failed to load intelligence: {e}")
-            return False
+            logger.error(f"❌ Error caching intelligence: {e}")
+            return {}
+
+    def invalidate_cache(self):
+        """Invalidate the cached intelligence to force rebuild"""
+        if hasattr(self, '_cached_intelligence'):
+            delattr(self, '_cached_intelligence')
+        if hasattr(self, '_cache_timestamp'):
+            delattr(self, '_cache_timestamp')
+        logger.info("🗑️ Product intelligence cache invalidated")
 
     def get_summary(self) -> Dict:
         """Get intelligence summary"""
@@ -671,23 +713,25 @@ class ProductIntelligenceBuilder:
 
 
 # Convenience functions
-def build_product_intelligence(save_to_file: bool = True) -> Dict:
+
+#Removed old build_product intelligence, but I just updated the def
+def build_product_intelligence(cache_in_memory: bool = True) -> Dict:
     """
-    Build complete product intelligence with manufacturer data
+    Build product intelligence from database (replaces file-based approach)
 
     Args:
-        save_to_file: Whether to save to JSON file
+        cache_in_memory: Whether to use memory caching for performance
 
     Returns:
-        Intelligence dictionary
+        Intelligence dictionary built from current database state
     """
     builder = ProductIntelligenceBuilder()
 
     try:
-        intelligence = builder.build_complete_intelligence()
-
-        if save_to_file:
-            builder.save_intelligence()
+        if cache_in_memory:
+            intelligence = builder.cache_intelligence_in_memory()
+        else:
+            intelligence = builder.get_intelligence_from_database()
 
         return intelligence
 
@@ -695,17 +739,65 @@ def build_product_intelligence(save_to_file: bool = True) -> Dict:
         builder.close()
 
 
+#Removed old Convenience FUnction get_intelligence_summary
+
+#Added new get_intelligence_summary and invalidate_product_intelligence_cache
 def get_intelligence_summary() -> Dict:
-    """Get intelligence summary from file"""
+    """Get intelligence summary from live database (replaces file loading)"""
     builder = ProductIntelligenceBuilder()
 
     try:
-        if builder.load_intelligence():
-            return builder.get_summary()
+        # Always get fresh data for summary
+        intelligence = builder.get_intelligence_from_database()
+
+        if intelligence and "error" not in intelligence:
+            # Build summary from live data
+            metadata = intelligence.get('metadata', {})
+            stats = intelligence.get('statistics', {})
+
+            return {
+                'created': metadata.get('created'),
+                'total_products_raw': metadata.get('total_products_raw', 0),
+                'total_products_filtered': metadata.get('total_products_filtered', 0),
+                'total_manufacturers': metadata.get('total_manufacturers', 0),
+                'total_categories': metadata.get('total_categories', 0),
+                'filter_ratio': round(
+                    (metadata.get('total_products_filtered', 0) / metadata.get('total_products_raw', 1)) * 100, 1),
+                'price_range': {
+                    'min': stats.get('price_statistics', {}).get('min_price', 0),
+                    'max': stats.get('price_statistics', {}).get('max_price', 0),
+                    'average': round(stats.get('price_statistics', {}).get('average_price', 0), 2)
+                },
+                'top_categories': list(stats.get('category_distribution', {}).keys())[:5],
+                'top_manufacturers': list(stats.get('manufacturer_distribution', {}).keys())[:5],
+                'stock_ratio': round(stats.get('stock_ratio', 0) * 100, 1),
+                'data_source': 'live_database',
+                'cache_available': hasattr(builder, '_cached_intelligence')
+            }
         else:
             return {
-                "error": "No intelligence file found. Run build_product_intelligence() first."
+                'error': 'Failed to build intelligence from database',
+                'data_source': 'database_error'
             }
+    finally:
+        builder.close()
+
+def invalidate_product_intelligence_cache() -> Dict:
+    """
+    Invalidate product intelligence cache to force fresh rebuild
+
+    Returns:
+        Status of cache invalidation
+    """
+    builder = ProductIntelligenceBuilder()
+
+    try:
+        builder.invalidate_cache()
+        return {
+            'success': True,
+            'message': 'Product intelligence cache invalidated',
+            'next_access_will_rebuild': True
+        }
     finally:
         builder.close()
 

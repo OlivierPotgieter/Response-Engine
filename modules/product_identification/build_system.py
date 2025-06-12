@@ -186,26 +186,40 @@ class ProductIdentifierSystemBuilder:
 
         return [f for f in required_files if os.path.exists(f)]
 
-    def _build_product_intelligence(self) -> bool:
-        """Build product intelligence from database"""
+    #Removed old _build_product_intelligence function and updated it.
+    def _build_category_intelligence(self) -> bool:
+        """Validate category intelligence from database (no more file creation)"""
         try:
-            logger.info("🧠 Building product intelligence from database...")
+            logger.info("Validating category intelligence from database...")
 
-            from .product_intelligence_builder import build_product_intelligence
+            #NEW: Validate intelligence from database instead of creating file
+            from .category_intelligence import CategoryIntelligenceManager
 
-            intelligence = build_product_intelligence(save_to_file=True)
+            intelligence = CategoryIntelligenceManager.load_intelligence()
 
-            if intelligence and "error" not in intelligence:
-                self.files_created.append("product_intelligence.json")
-                logger.info("✅ Product intelligence built successfully")
+            if intelligence and intelligence.get('categories'):
+                # REMOVE: File creation code
+                # with open("category_intelligence.json", 'w') as f:
+                #     json.dump(category_intelligence, f, indent=2)
+                # self.files_created.append("category_intelligence.json")
+
+                # NEW: Track that intelligence is ready (no file created)
+                categories_count = len(intelligence['categories'])
+                total_products = sum(cat.get('product_count', 0) for cat in intelligence['categories'].values())
+
+                logger.info(
+                    f"✅ Category intelligence validated: {categories_count} categories, {total_products} products")
+
+                # Track this as a successful component (not a file)
+                self.files_created.append("category_intelligence_database_cache")
                 return True
             else:
-                self.errors.append("Failed to build product intelligence")
+                self.errors.append("Failed to load category intelligence from database")
                 return False
 
         except Exception as e:
-            self.errors.append(f"Product intelligence build error: {e}")
-            logger.error(f"❌ Product intelligence build failed: {e}")
+            self.errors.append(f"Category intelligence validation error: {e}")
+            logger.error(f"❌ Category intelligence validation failed: {e}")
             return False
 
     def _build_category_intelligence(self) -> bool:
@@ -267,15 +281,15 @@ class ProductIdentifierSystemBuilder:
             logger.error(f"❌ Category intelligence build failed: {e}")
             return False
 
+    #Removed caching
     def _build_embeddings_system(self) -> bool:
-        """Build embeddings and upload to Pinecone"""
+        """Build embeddings and upload to Pinecone (no local cache)"""
         try:
             logger.info("🔗 Building embeddings system...")
 
             # Step 1: Load product intelligence
             import json
-
-            with open("product_intelligence.json", "r") as f:
+            with open("product_intelligence.json", 'r') as f:
                 intelligence = json.load(f)
 
             products_data = intelligence.get("products", [])
@@ -283,9 +297,7 @@ class ProductIdentifierSystemBuilder:
                 self.errors.append("No products found in intelligence data")
                 return False
 
-            logger.info(
-                f"📊 Found {len(products_data)} products for embedding generation"
-            )
+            logger.info(f"📊 Found {len(products_data)} products for embedding generation")
 
             # Step 2: Initialize services
             from .embedding_service import EmbeddingService
@@ -301,9 +313,7 @@ class ProductIdentifierSystemBuilder:
 
             # Step 4: Generate embeddings
             logger.info("🧬 Generating embeddings for products...")
-            product_embeddings = embedding_service.create_product_embeddings(
-                products_data
-            )
+            product_embeddings = embedding_service.create_product_embeddings(products_data)
 
             if not product_embeddings:
                 self.errors.append("Failed to generate product embeddings")
@@ -317,11 +327,11 @@ class ProductIdentifierSystemBuilder:
                 self.errors.append("Failed to upload embeddings to Pinecone")
                 return False
 
-            # Step 6: Save embeddings cache
-            embedding_service.save_embeddings_cache()
-            self.files_created.append("product_embeddings_cache.pkl")
+            # REMOVE: Step 6: Save embeddings cache
+            # embedding_service.save_embeddings_cache()
+            # self.files_created.append("product_embeddings_cache.pkl")
 
-            logger.info("✅ Embeddings system built successfully")
+            logger.info("✅ Embeddings system built successfully (cache disabled)")
             return True
 
         except Exception as e:

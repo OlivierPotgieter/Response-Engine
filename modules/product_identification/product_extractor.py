@@ -54,8 +54,8 @@ class ProductExtractor:
         self.pinecone_manager = PineconeManager()
         self.config = ProductIdentifierConfig.SEARCH_CONFIG
 
-        # Load any cached embeddings
-        self.embedding_service.load_embeddings_cache()
+        # REMOVE
+        #self.embedding_service.load_embeddings_cache()
 
         # Ensure Pinecone connection
         if not self.pinecone_manager.connect_to_index():
