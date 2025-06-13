@@ -1,5 +1,5 @@
 """
-Backend Database Operations Module
+Backend Database Operations Module - CLEAN VERSION
 Handles all operations for the backend Products database table.
 """
 
@@ -9,8 +9,39 @@ from typing import Dict, Optional, List
 import mysql.connector
 from mysql.connector import Error
 from datetime import datetime
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class Product:
+    """Product data class with correct manufacturer information"""
+
+    product_id: int
+    name: str
+    sku: str
+    category: str
+    manufacturer_id: int
+    manufacturer_name: str
+    current_price: float
+    is_enabled: bool
+    is_eol: bool
+    is_in_stock: bool
+    search_text: str
+    short_description: str
+    description: str
+    popularity: float
+    created: str
+    updated: str
+
+
+@dataclass
+class Manufacturer:
+    """Manufacturer data class for the correct table"""
+
+    id: int
+    name: str
 
 
 class BackendDatabase:
@@ -39,9 +70,7 @@ class BackendDatabase:
             logger.info("Reconnecting to backend database...")
             self._connect()
 
-    def get_product_details(
-        self, product_id: str, is_alternative: bool = False
-    ) -> Optional[Dict]:
+    def get_product_details(self, product_id: str, is_alternative: bool = False) -> Optional[Dict]:
         """
         Fetch detailed product information from Products table
 
@@ -60,36 +89,36 @@ class BackendDatabase:
 
             # Query the Products table using correct column names
             query = """
-                    SELECT ProductId, \
-                           Name, \
-                           Sku, \
-                           Category, \
-                           CostExVat, \
-                           Cost, \
-                           Price, \
-                           SpecialPrice, \
-                           CurrentPrice, \
-                           IsOnPromotion, \
-                           Availability, \
-                           LeadTime, \
-                           Eta, \
-                           IsEol, \
-                           IsEnabled, \
-                           StockQuantity, \
-                           IsStockManaged, \
-                           IsInStock, \
-                           Created, \
-                           Updated, \
-                           ManufacturerId, \
-                           Status, \
-                           Rating, \
-                           ReviewCount, \
-                           ExpectedDispatch, \
-                           ShortDescription, \
-                           StockCondition, \
+                    SELECT ProductId, 
+                           Name, 
+                           Sku, 
+                           Category, 
+                           CostExVat, 
+                           Cost, 
+                           Price, 
+                           SpecialPrice, 
+                           CurrentPrice, 
+                           IsOnPromotion, 
+                           Availability, 
+                           LeadTime, 
+                           Eta, 
+                           IsEol, 
+                           IsEnabled, 
+                           StockQuantity, 
+                           IsStockManaged, 
+                           IsInStock, 
+                           Created, 
+                           Updated, 
+                           ManufacturerId, 
+                           Status, 
+                           Rating, 
+                           ReviewCount, 
+                           ExpectedDispatch, 
+                           ShortDescription, 
+                           StockCondition, 
                            Description
                     FROM Products
-                    WHERE ProductId = %s \
+                    WHERE ProductId = %s
                     """
 
             cursor.execute(query, (product_id,))
@@ -104,47 +133,25 @@ class BackendDatabase:
                     "name": result.get("Name"),
                     "sku": result.get("Sku"),
                     "category": result.get("Category"),
-                    "cost_ex_vat": (
-                        float(result.get("CostExVat", 0))
-                        if result.get("CostExVat")
-                        else None
-                    ),
-                    "cost": (
-                        float(result.get("Cost", 0)) if result.get("Cost") else None
-                    ),
-                    "price": (
-                        float(result.get("Price", 0)) if result.get("Price") else None
-                    ),
-                    "special_price": (
-                        float(result.get("SpecialPrice", 0))
-                        if result.get("SpecialPrice")
-                        else None
-                    ),
-                    "current_price": (
-                        float(result.get("CurrentPrice", 0))
-                        if result.get("CurrentPrice")
-                        else None
-                    ),
+                    "cost_ex_vat": float(result.get("CostExVat", 0)) if result.get("CostExVat") else None,
+                    "cost": float(result.get("Cost", 0)) if result.get("Cost") else None,
+                    "price": float(result.get("Price", 0)) if result.get("Price") else None,
+                    "special_price": float(result.get("SpecialPrice", 0)) if result.get("SpecialPrice") else None,
+                    "current_price": float(result.get("CurrentPrice", 0)) if result.get("CurrentPrice") else None,
                     "is_on_promotion": bool(result.get("IsOnPromotion", 0)),
                     "availability": result.get("Availability"),
                     "lead_time": result.get("LeadTime"),
                     "eta": result.get("Eta"),
                     "is_eol": bool(result.get("IsEol", 0)),
                     "is_enabled": bool(result.get("IsEnabled", 0)),
-                    "stock_quantity": (
-                        float(result.get("StockQuantity", 0))
-                        if result.get("StockQuantity")
-                        else 0
-                    ),
+                    "stock_quantity": float(result.get("StockQuantity", 0)) if result.get("StockQuantity") else 0,
                     "is_stock_managed": bool(result.get("IsStockManaged", 0)),
                     "is_in_stock": bool(result.get("IsInStock", 0)),
                     "created": result.get("Created"),
                     "updated": result.get("Updated"),
                     "manufacturer_id": result.get("ManufacturerId"),
                     "status": result.get("Status"),
-                    "rating": (
-                        float(result.get("Rating", 0)) if result.get("Rating") else None
-                    ),
+                    "rating": float(result.get("Rating", 0)) if result.get("Rating") else None,
                     "review_count": result.get("ReviewCount"),
                     "expected_dispatch": result.get("ExpectedDispatch"),
                     "short_description": result.get("ShortDescription"),
@@ -177,7 +184,6 @@ class BackendDatabase:
         except Exception as e:
             logger.error(f"❌ Unexpected error querying product ID {product_id}: {e}")
             import traceback
-
             logger.error(f"Full traceback: {traceback.format_exc()}")
             return {
                 "error": "Unexpected error",
@@ -213,11 +219,6 @@ class BackendDatabase:
 
         return results
 
-    #Adding a new few new functions here :
-    #get_category_intelligence_data
-    #_extract_category_keywords
-    #_extract_category_patterns
-
     def get_category_intelligence_data(self) -> Dict:
         """
         Build category intelligence from Products and Manufacturers tables
@@ -234,20 +235,20 @@ class BackendDatabase:
 
             # Get all categories with their products and manufacturers
             query = """
-                    SELECT p.Category, \
-                           p.Name   as ProductName, \
-                           p.SearchText, \
-                           m.Name   as ManufacturerName, \
+                    SELECT p.Category, 
+                           p.Name   as ProductName, 
+                           p.SearchText, 
+                           m.Name   as ManufacturerName, 
                            COUNT(*) as ProductCount
                     FROM Products p
                              LEFT JOIN Manufacturers m ON p.ManufacturerId = m.Id
                     WHERE p.IsEnabled = 1
                       AND p.Category IS NOT NULL
                       AND p.Category != ''
-              AND p.Name IS NOT NULL
-              AND p.Name != ''
+                      AND p.Name IS NOT NULL
+                      AND p.Name != ''
                     GROUP BY p.Category, m.Name, p.Name, p.SearchText
-                    ORDER BY p.Category, ProductCount DESC \
+                    ORDER BY p.Category, ProductCount DESC
                     """
 
             cursor.execute(query)
@@ -309,7 +310,7 @@ class BackendDatabase:
                 intelligence["categories"][category] = {
                     "keywords": keywords,
                     "patterns": patterns,
-                    "manufacturers": manufacturers,  # Changed from 'brands' to 'manufacturers'
+                    "manufacturers": manufacturers,
                     "product_count": category_products[category]
                 }
 
@@ -409,6 +410,246 @@ class BackendDatabase:
         # Return sorted list of unique patterns (limit to prevent bloat)
         return sorted(list(patterns))[:20]
 
+    def get_all_manufacturers(self) -> List[Manufacturer]:
+        """
+        Get all manufacturers from the database
+
+        Returns:
+            List of Manufacturer objects
+        """
+        self._ensure_connection()
+        cursor = self.connection.cursor(dictionary=True)
+
+        try:
+            # Build query based on actual table structure
+            query = """
+                SELECT *
+                FROM Manufacturers
+                WHERE Name IS NOT NULL 
+                  AND Name != ''
+                ORDER BY Name
+            """
+
+            cursor.execute(query)
+            results = cursor.fetchall()
+
+            manufacturers = []
+            for row in results:
+                # Create Manufacturer object
+                manufacturer = Manufacturer(
+                    id=row.get("Id") or row.get("id"),
+                    name=row.get("Name") or row.get("name") or "",
+                )
+                manufacturers.append(manufacturer)
+
+            logger.info(f"Retrieved {len(manufacturers)} manufacturers")
+            return manufacturers
+
+        except Error as e:
+            logger.error(f"Error retrieving manufacturers: {e}")
+            return []
+        finally:
+            cursor.close()
+
+    def get_all_products(self, enabled_only: bool = True) -> List[Product]:
+        """
+        Get all products with CORRECT manufacturer information
+
+        Args:
+            enabled_only: Only return enabled products
+
+        Returns:
+            List of Product objects with manufacturer names
+        """
+        self._ensure_connection()
+        cursor = self.connection.cursor(dictionary=True)
+
+        try:
+            # Now joining with Manufacturers table instead of Brands
+            where_clause = "WHERE p.Name IS NOT NULL AND p.Name != ''"
+            if enabled_only:
+                where_clause += " AND p.IsEnabled = 1"
+
+            query = f"""
+                SELECT 
+                    p.ProductId,
+                    p.Name,
+                    p.Sku,
+                    p.Category,
+                    p.ManufacturerId,
+                    p.CurrentPrice,
+                    p.IsEnabled,
+                    p.IsEol,
+                    p.IsInStock,
+                    p.SearchText,
+                    p.ShortDescription,
+                    p.Description,
+                    p.Popularity,
+                    p.Created,
+                    p.Updated,
+                    COALESCE(m.Name, 'Unknown') as ManufacturerName
+                FROM Products p
+                LEFT JOIN Manufacturers m ON p.ManufacturerId = m.Id
+                {where_clause}
+                ORDER BY p.Name
+            """
+
+            cursor.execute(query)
+            results = cursor.fetchall()
+
+            products = []
+            for row in results:
+                product = Product(
+                    product_id=row["ProductId"],
+                    name=row["Name"] or "",
+                    sku=row["Sku"] or "",
+                    category=row["Category"] or "",
+                    manufacturer_id=row["ManufacturerId"] or 0,
+                    manufacturer_name=row["ManufacturerName"] or "Unknown",
+                    current_price=float(row["CurrentPrice"] or 0),
+                    is_enabled=bool(row["IsEnabled"]),
+                    is_eol=bool(row["IsEol"]),
+                    is_in_stock=bool(row["IsInStock"]),
+                    search_text=row["SearchText"] or "",
+                    short_description=row["ShortDescription"] or "",
+                    description=row["Description"] or "",
+                    popularity=float(row["Popularity"] or 0),
+                    created=str(row["Created"] or ""),
+                    updated=str(row["Updated"] or ""),
+                )
+                products.append(product)
+
+            logger.info(f"Retrieved {len(products)} products with manufacturer information")
+            return products
+
+        except Error as e:
+            logger.error(f"Error retrieving products: {e}")
+            return []
+        finally:
+            cursor.close()
+
+    def get_categories(self) -> List[str]:
+        """
+        Get all unique categories
+
+        Returns:
+            List of category names
+        """
+        self._ensure_connection()
+        cursor = self.connection.cursor()
+
+        try:
+            query = """
+                    SELECT DISTINCT Category, COUNT(*) as ProductCount
+                    FROM Products
+                    WHERE Category IS NOT NULL
+                      AND Category != ''
+                      AND IsEnabled = 1
+                    GROUP BY Category
+                    ORDER BY ProductCount DESC, Category
+                    """
+
+            cursor.execute(query)
+            results = cursor.fetchall()
+
+            categories = [row[0] for row in results]
+            logger.info(f"Found {len(categories)} categories")
+            return categories
+
+        except Error as e:
+            logger.error(f"Error retrieving categories: {e}")
+            return []
+        finally:
+            cursor.close()
+
+    def get_manufacturer_names(self) -> List[str]:
+        """
+        Get all manufacturer names
+
+        Returns:
+            List of manufacturer names
+        """
+        self._ensure_connection()
+        cursor = self.connection.cursor()
+
+        try:
+            query = """
+                SELECT DISTINCT m.Name
+                FROM Manufacturers m
+                INNER JOIN Products p ON m.Id = p.ManufacturerId
+                WHERE m.Name IS NOT NULL 
+                  AND m.Name != ''
+                  AND p.IsEnabled = 1
+                ORDER BY m.Name
+            """
+
+            cursor.execute(query)
+            results = cursor.fetchall()
+
+            manufacturers = [row[0] for row in results]
+            logger.info(f"Found {len(manufacturers)} active manufacturers")
+            return manufacturers
+
+        except Error as e:
+            logger.error(f"Error retrieving manufacturer names: {e}")
+            return []
+        finally:
+            cursor.close()
+
+    def get_database_stats(self) -> Dict:
+        """
+        Get database statistics with CORRECT manufacturer information
+
+        Returns:
+            Dictionary with database stats
+        """
+        self._ensure_connection()
+        cursor = self.connection.cursor(dictionary=True)
+
+        try:
+            stats = {}
+
+            # Total products
+            cursor.execute("SELECT COUNT(*) as total FROM Products")
+            stats["total_products"] = cursor.fetchone()["total"]
+
+            # Enabled products
+            cursor.execute("SELECT COUNT(*) as enabled FROM Products WHERE IsEnabled = 1")
+            stats["enabled_products"] = cursor.fetchone()["enabled"]
+
+            # In stock products
+            cursor.execute("SELECT COUNT(*) as in_stock FROM Products WHERE IsInStock = 1 AND IsEnabled = 1")
+            stats["in_stock_products"] = cursor.fetchone()["in_stock"]
+
+            # Total manufacturers
+            cursor.execute("SELECT COUNT(*) as total FROM Manufacturers")
+            stats["total_manufacturers"] = cursor.fetchone()["total"]
+
+            # Active manufacturers (with products)
+            cursor.execute("""
+                SELECT COUNT(DISTINCT m.Id) as active 
+                FROM Manufacturers m 
+                INNER JOIN Products p ON m.Id = p.ManufacturerId 
+                WHERE p.IsEnabled = 1
+            """)
+            stats["active_manufacturers"] = cursor.fetchone()["active"]
+
+            # Categories
+            cursor.execute("""
+                SELECT COUNT(DISTINCT Category) as categories 
+                FROM Products 
+                WHERE Category IS NOT NULL AND Category != '' AND IsEnabled = 1
+            """)
+            stats["categories"] = cursor.fetchone()["categories"]
+
+            logger.info(f"Database stats: {stats}")
+            return stats
+
+        except Error as e:
+            logger.error(f"Error getting database stats: {e}")
+            return {}
+        finally:
+            cursor.close()
 
     def close(self):
         """Close database connection"""
@@ -447,63 +688,42 @@ class ProductLookupService:
             main_product_id = customer_data.get("product_id")
             alternative_id = customer_data.get("alternative_id")
 
-            logger.info(
-                f"Looking for products - Main ID: {main_product_id}, Alternative ID: {alternative_id}"
-            )
+            logger.info(f"Looking for products - Main ID: {main_product_id}, Alternative ID: {alternative_id}")
             product_details["debug_info"]["main_product_id"] = main_product_id
             product_details["debug_info"]["alternative_id"] = alternative_id
 
             # Check for main product_id
             if main_product_id:
                 logger.info(f"Searching for main product with ID: {main_product_id}")
-                main_product = self.backend_db.get_product_details(
-                    str(main_product_id), is_alternative=False
-                )
+                main_product = self.backend_db.get_product_details(str(main_product_id), is_alternative=False)
                 if main_product and not main_product.get("error"):
                     product_details["main_product"] = main_product
                     product_details["products_found"].append("main_product")
-                    logger.info(
-                        f"Found main product: {main_product.get('name', 'Unknown')}"
-                    )
+                    logger.info(f"Found main product: {main_product.get('name', 'Unknown')}")
                 else:
                     logger.warning(f"Main product not found for ID: {main_product_id}")
                     if main_product and main_product.get("error"):
-                        product_details["main_product"] = (
-                            main_product  # Include error info
-                        )
+                        product_details["main_product"] = main_product
 
             # Check for alternative_id
             if alternative_id and str(alternative_id).strip():
-                logger.info(
-                    f"Searching for alternative product with ID: {alternative_id}"
-                )
-                alternative_product = self.backend_db.get_product_details(
-                    str(alternative_id), is_alternative=True
-                )
+                logger.info(f"Searching for alternative product with ID: {alternative_id}")
+                alternative_product = self.backend_db.get_product_details(str(alternative_id), is_alternative=True)
                 if alternative_product and not alternative_product.get("error"):
                     product_details["alternative_product"] = alternative_product
                     product_details["products_found"].append("alternative_product")
-                    logger.info(
-                        f"Found alternative product: {alternative_product.get('name', 'Unknown')}"
-                    )
+                    logger.info(f"Found alternative product: {alternative_product.get('name', 'Unknown')}")
                 else:
-                    logger.warning(
-                        f"Alternative product not found for ID: {alternative_id}"
-                    )
+                    logger.warning(f"Alternative product not found for ID: {alternative_id}")
                     if alternative_product and alternative_product.get("error"):
-                        product_details["alternative_product"] = (
-                            alternative_product  # Include error info
-                        )
+                        product_details["alternative_product"] = alternative_product
 
-            logger.info(
-                f"Product lookup complete. Found: {product_details['products_found']}"
-            )
+            logger.info(f"Product lookup complete. Found: {product_details['products_found']}")
             return product_details
 
         except Exception as e:
             logger.error(f"Exception in get_all_product_details: {e}")
             import traceback
-
             logger.error(f"Full traceback: {traceback.format_exc()}")
             return {
                 "error": f"Exception in get_all_product_details: {str(e)}",
@@ -520,20 +740,26 @@ class ProductLookupService:
 
 # Convenience functions for single operations
 
-#Adding new get_category_intelligence_from_database
-def get_category_intelligence_from_database() -> Dict:
+def get_product_intelligence_from_database() -> Dict:
     """
-    Convenience function to get category intelligence from database
-    Replaces category_intelligence.json file dependency
+    Convenience function to get product intelligence from database
+    Replaces product_intelligence.json file dependency
 
     Returns:
-        Dict with category intelligence data from live database
+        Dict with product intelligence data from live database
     """
-    db = BackendDatabase()
     try:
-        return db.get_category_intelligence_data()
-    finally:
-        db.close()
+        from ..product_identification.product_intelligence_builder import ProductIntelligenceBuilder
+
+        builder = ProductIntelligenceBuilder()
+        try:
+            return builder.get_intelligence_from_database()
+        finally:
+            builder.close()
+
+    except Exception as e:
+        logger.error(f"Error getting product intelligence from database: {e}")
+        return {}
 
 
 def get_product_data(product_id: str, is_alternative: bool = False) -> Optional[Dict]:
@@ -569,3 +795,48 @@ def get_all_products_for_request(customer_data: Dict) -> Dict:
         return service.get_all_product_details(customer_data)
     finally:
         service.close()
+
+
+if __name__ == "__main__":
+    # Test the clean database connector
+    import logging
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    logging.basicConfig(level=logging.INFO)
+
+    print("🔍 Testing Clean Database Connector:")
+    print(f"  DB Host: {os.getenv('BACKEND_DB_HOST', 'NOT SET')}")
+    print(f"  DB User: {os.getenv('BACKEND_DB_USER', 'NOT SET')}")
+    print(f"  DB Password: {'SET' if os.getenv('BACKEND_DB_PASSWORD') else 'NOT SET'}")
+    print()
+
+    try:
+        db = BackendDatabase()
+
+        # Test database stats
+        print("📊 Database Statistics:")
+        stats = db.get_database_stats()
+        for key, value in stats.items():
+            print(f"  {key}: {value:,}")
+
+        # Test manufacturers
+        print("\n🏭 Top 5 Manufacturers:")
+        manufacturers = db.get_manufacturer_names()[:5]
+        for i, manufacturer in enumerate(manufacturers, 1):
+            print(f"  {i}. {manufacturer}")
+
+        # Test categories
+        print("\n📂 Top 5 Categories:")
+        categories = db.get_categories()[:5]
+        for i, category in enumerate(categories, 1):
+            print(f"  {i}. {category}")
+
+        db.close()
+
+        print("\n✅ Clean Database Connector Test Completed!")
+
+    except Exception as e:
+        print(f"❌ Error testing database: {e}")
+        import traceback
+        traceback.print_exc()

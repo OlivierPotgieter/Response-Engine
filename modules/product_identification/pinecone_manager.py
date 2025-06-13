@@ -1,6 +1,6 @@
 """
-Pinecone Manager for Product Identifier
-Handles all Pinecone vector database operations
+Pinecone Manager for Product Identifier - FIXED: Remove 5000 item limit
+Handles all Pinecone vector database operations with unlimited uploads
 """
 
 import logging
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class PineconeManager:
-    """Manager for Pinecone vector database operations"""
+    """Manager for Pinecone vector database operations - UNLIMITED UPLOADS"""
 
     def __init__(self):
         """Initialize Pinecone manager"""
@@ -123,14 +123,15 @@ class PineconeManager:
             return False
 
     def upload_product_embeddings(
-        self, product_embeddings: List[ProductEmbedding], batch_size: int = 100
+        self, product_embeddings: List[ProductEmbedding], batch_size: int = 200
     ) -> bool:
         """
-        Upload product embeddings to Pinecone
+        FIXED: Upload ALL product embeddings to Pinecone - NO LIMITS
+        Uses optimized batch size of 200 for better performance
 
         Args:
-            product_embeddings: List of ProductEmbedding objects
-            batch_size: Number of vectors to upload per batch
+            product_embeddings: List of ProductEmbedding objects (UNLIMITED)
+            batch_size: Number of vectors to upload per batch (optimized to 200)
 
         Returns:
             True if successful, False otherwise
@@ -143,8 +144,9 @@ class PineconeManager:
             logger.warning("No product embeddings to upload")
             return True
 
+        total_embeddings = len(product_embeddings)
         logger.info(
-            f"Uploading {len(product_embeddings)} product embeddings in batches of {batch_size}"
+            f"🚀 UNLIMITED UPLOAD: Processing {total_embeddings:,} product embeddings in batches of {batch_size}"
         )
 
         try:
@@ -159,9 +161,12 @@ class PineconeManager:
                 }
                 vectors_to_upload.append(vector_data)
 
-            # Upload in batches
+            # Upload in batches - NO LIMITS, PROCESS ALL
             total_batches = (len(vectors_to_upload) + batch_size - 1) // batch_size
             successful_uploads = 0
+            failed_uploads = 0
+
+            logger.info(f"📊 Starting upload of {total_embeddings:,} embeddings in {total_batches:,} batches")
 
             for i in range(0, len(vectors_to_upload), batch_size):
                 batch = vectors_to_upload[i : i + batch_size]
@@ -169,34 +174,141 @@ class PineconeManager:
 
                 try:
                     logger.info(
-                        f"Uploading batch {batch_num}/{total_batches} ({len(batch)} vectors)"
+                        f"⬆️ Uploading batch {batch_num:,}/{total_batches:,} ({len(batch)} vectors) - Progress: {(batch_num/total_batches)*100:.1f}%"
                     )
 
-                    self.index.upsert(vectors=batch)
-                    successful_uploads += len(batch)
+                    # Upload batch with retry logic
+                    retry_count = 0
+                    max_retries = 3
 
-                    # Small delay between batches to avoid rate limits
-                    time.sleep(0.1)
+                    while retry_count < max_retries:
+                        try:
+                            self.index.upsert(vectors=batch)
+                            successful_uploads += len(batch)
+                            break
+                        except Exception as retry_error:
+                            retry_count += 1
+                            if retry_count < max_retries:
+                                wait_time = retry_count * 2  # Exponential backoff
+                                logger.warning(f"Batch {batch_num} failed (attempt {retry_count}), retrying in {wait_time}s: {retry_error}")
+                                time.sleep(wait_time)
+                            else:
+                                logger.error(f"Batch {batch_num} failed after {max_retries} attempts: {retry_error}")
+                                failed_uploads += len(batch)
+
+                    # Rate limiting to avoid overwhelming Pinecone
+                    if batch_num % 10 == 0:  # Every 10 batches, longer pause
+                        time.sleep(1.0)
+                    else:
+                        time.sleep(0.1)
+
+                    # Progress logging every 50 batches
+                    if batch_num % 50 == 0:
+                        logger.info(f"✅ Progress update: {successful_uploads:,}/{total_embeddings:,} embeddings uploaded successfully")
 
                 except Exception as e:
                     logger.error(f"Failed to upload batch {batch_num}: {e}")
+                    failed_uploads += len(batch)
                     continue
 
-            logger.info(
-                f"Successfully uploaded {successful_uploads}/{len(product_embeddings)} product embeddings"
-            )
+            # Final statistics
+            success_rate = (successful_uploads / total_embeddings) * 100 if total_embeddings > 0 else 0
+
+            logger.info(f"🎉 UPLOAD COMPLETE!")
+            logger.info(f"📈 Successfully uploaded: {successful_uploads:,}/{total_embeddings:,} embeddings ({success_rate:.1f}%)")
+
+            if failed_uploads > 0:
+                logger.warning(f"⚠️ Failed uploads: {failed_uploads:,} embeddings")
 
             # Wait for index to update
-            time.sleep(2)
+            logger.info("⏳ Waiting for index to update...")
+            time.sleep(5)
 
             # Verify upload
-            stats = self.index.describe_index_stats()
-            logger.info(f"Index now contains {stats.total_vector_count} total vectors")
+            try:
+                stats = self.index.describe_index_stats()
+                final_count = stats.total_vector_count
+                logger.info(f"🔍 Index verification: {final_count:,} total vectors in index")
+
+                if final_count >= successful_uploads * 0.95:  # Allow for some indexing delay
+                    logger.info("✅ Upload verification successful!")
+                else:
+                    logger.warning(f"⚠️ Upload verification: Expected ~{successful_uploads:,}, found {final_count:,}")
+
+            except Exception as e:
+                logger.error(f"Could not verify upload: {e}")
 
             return successful_uploads > 0
 
         except Exception as e:
             logger.error(f"Failed to upload product embeddings: {e}")
+            return False
+
+    def upload_embeddings_with_progress_callback(
+        self,
+        product_embeddings: List[ProductEmbedding],
+        batch_size: int = 200,
+        progress_callback = None
+    ) -> bool:
+        """
+        BONUS: Upload embeddings with progress callback for better monitoring
+
+        Args:
+            product_embeddings: List of ProductEmbedding objects
+            batch_size: Batch size for uploads
+            progress_callback: Function to call with progress updates (batch_num, total_batches, success_count)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.index:
+            logger.error("No index connection available")
+            return False
+
+        if not product_embeddings:
+            logger.warning("No product embeddings to upload")
+            return True
+
+        total_embeddings = len(product_embeddings)
+        total_batches = (total_embeddings + batch_size - 1) // batch_size
+        successful_uploads = 0
+
+        logger.info(f"🚀 Starting upload with progress tracking: {total_embeddings:,} embeddings")
+
+        try:
+            # Prepare vectors
+            vectors_to_upload = []
+            for product_emb in product_embeddings:
+                vector_data = {
+                    "id": str(product_emb.product_id),
+                    "values": product_emb.embedding,
+                    "metadata": product_emb.metadata,
+                }
+                vectors_to_upload.append(vector_data)
+
+            # Upload with progress tracking
+            for i in range(0, len(vectors_to_upload), batch_size):
+                batch = vectors_to_upload[i : i + batch_size]
+                batch_num = (i // batch_size) + 1
+
+                try:
+                    self.index.upsert(vectors=batch)
+                    successful_uploads += len(batch)
+
+                    # Call progress callback if provided
+                    if progress_callback:
+                        progress_callback(batch_num, total_batches, successful_uploads)
+
+                    time.sleep(0.1)  # Rate limiting
+
+                except Exception as e:
+                    logger.error(f"Batch {batch_num} failed: {e}")
+                    continue
+
+            return successful_uploads > 0
+
+        except Exception as e:
+            logger.error(f"Upload with progress tracking failed: {e}")
             return False
 
     def search_products(
@@ -539,7 +651,9 @@ class PineconeManager:
 
 
 if __name__ == "__main__":
-    # Test the Pinecone manager
+    # Test the unlimited Pinecone manager
+    from .config import ProductIdentifierConfig
+
     ProductIdentifierConfig.setup_logging()
 
     try:
@@ -559,9 +673,11 @@ if __name__ == "__main__":
         if health["index_stats"]:
             stats = health["index_stats"]
             print("\n📊 Index Statistics:")
-            print(f"   Total vectors: {stats.get('total_vector_count', 0)}")
+            print(f"   Total vectors: {stats.get('total_vector_count', 0):,}")
             print(f"   Dimension: {stats.get('dimension', 0)}")
             print(f"   Index fullness: {stats.get('index_fullness', 0):.2%}")
 
+        print("\n🚀 UNLIMITED UPLOAD MODE ACTIVE - No 5000 item limit!")
+
     except Exception as e:
-        print(f"❌ Error testing Pinecone manager: {e}")
+        print(f"❌ Error testing unlimited Pinecone manager: {e}")

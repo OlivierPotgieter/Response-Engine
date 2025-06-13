@@ -9,6 +9,7 @@ import time
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 
+
 from .embedding_service import EmbeddingService
 from .pinecone_manager import PineconeManager
 from .category_intelligence import CategoryDetector, CategoryIntelligenceManager
@@ -79,6 +80,33 @@ class SmartProductExtractor:
         if not self.pinecone_manager.connect_to_index():
             logger.error("❌ Failed to connect to Pinecone")
             raise Exception("Pinecone connection failed")
+
+    def _load_product_intelligence(self) -> Optional[Dict]:
+        """
+        Load product intelligence from database instead of file
+
+        Returns:
+            Product intelligence data from database
+        """
+        try:
+            logger.info("📂 Loading product intelligence from database...")
+
+            # Import here to avoid circular imports
+            from ..database import get_product_intelligence_from_database
+
+            intelligence = get_product_intelligence_from_database()
+
+            if intelligence and intelligence.get('products'):
+                products_count = len(intelligence['products'])
+                logger.info(f"✅ Loaded product intelligence: {products_count} products from database")
+                return intelligence
+            else:
+                logger.error("❌ Failed to load product intelligence from database")
+                return None
+
+        except Exception as e:
+            logger.error(f"❌ Error loading product intelligence: {e}")
+            return None
 
     #Adding new _load_product_intelligence def
     def _load_category_intelligence(self) -> Optional[Dict]:

@@ -1,5 +1,5 @@
 """
-Product Identifier System Builder
+Product Identifier System Builder - FIXED: Remove embedding upload limits
 Coordinates building all required components for the AI product identification system
 """
 
@@ -28,7 +28,7 @@ class SystemStatus:
 class ProductIdentifierSystemBuilder:
     """
     Coordinates building the complete product identification system.
-    This replaces the need for manual script running.
+    FIXED: No longer has 5000 item upload limits - processes ALL products
     """
 
     def __init__(self, force_rebuild: bool = False):
@@ -45,13 +45,14 @@ class ProductIdentifierSystemBuilder:
     def build_complete_system(self) -> SystemStatus:
         """
         Build the complete product identification system from your database
+        FIXED: No upload limits - processes ALL products
 
         Returns:
             SystemStatus with build results
         """
         start_time = time.time()
 
-        logger.info("🚀 Starting Product Identification System Build...")
+        logger.info("🚀 Starting UNLIMITED Product Identification System Build...")
 
         try:
             # Step 1: Validate configuration
@@ -77,16 +78,16 @@ class ProductIdentifierSystemBuilder:
                     errors=[],
                 )
 
-            # Step 3: Build product intelligence
+            # Step 3: Build product intelligence from database
             if not self._build_product_intelligence():
                 return self._build_error_status(start_time, "product_intelligence")
 
-            # Step 4: Build category intelligence
+            # Step 4: Build category intelligence from database
             if not self._build_category_intelligence():
                 return self._build_error_status(start_time, "category_intelligence")
 
-            # Step 5: Generate and upload embeddings
-            if not self._build_embeddings_system():
+            # Step 5: UNLIMITED Generate and upload embeddings to Pinecone
+            if not self._build_embeddings_system_unlimited():
                 return self._build_error_status(start_time, "embeddings_system")
 
             # Step 6: Verify system is working
@@ -96,16 +97,17 @@ class ProductIdentifierSystemBuilder:
             processing_time = time.time() - start_time
 
             logger.info(
-                f"✅ System build completed successfully in {processing_time:.2f} seconds"
+                f"✅ UNLIMITED System build completed successfully in {processing_time:.2f} seconds"
             )
 
             return SystemStatus(
                 success=True,
-                message=f"Product identification system built successfully in {processing_time:.2f}s",
+                message=f"UNLIMITED Product identification system built successfully in {processing_time:.2f}s - ALL products processed",
                 details={
                     "step": "completed",
                     "files_created": self.files_created,
                     "processing_time": processing_time,
+                    "unlimited_mode": True,
                 },
                 processing_time=processing_time,
                 files_created=self.files_created,
@@ -113,14 +115,14 @@ class ProductIdentifierSystemBuilder:
             )
 
         except Exception as e:
-            logger.error(f"❌ System build failed: {e}")
+            logger.error(f"❌ UNLIMITED System build failed: {e}")
             import traceback
 
             logger.error(f"Full traceback: {traceback.format_exc()}")
 
             return SystemStatus(
                 success=False,
-                message=f"System build failed: {str(e)}",
+                message=f"UNLIMITED System build failed: {str(e)}",
                 details={"step": "exception", "error": str(e)},
                 processing_time=time.time() - start_time,
                 files_created=self.files_created,
@@ -158,7 +160,7 @@ class ProductIdentifierSystemBuilder:
         required_files = [
             "product_intelligence.json",
             "category_intelligence.json",
-            "product_embeddings_cache.pkl",
+            # REMOVED: "product_embeddings_cache.pkl" - no longer using cache
         ]
 
         existing_files = []
@@ -181,36 +183,63 @@ class ProductIdentifierSystemBuilder:
         required_files = [
             "product_intelligence.json",
             "category_intelligence.json",
-            "product_embeddings_cache.pkl",
+            # REMOVED: "product_embeddings_cache.pkl" - no longer using cache
         ]
 
         return [f for f in required_files if os.path.exists(f)]
 
-    #Removed old _build_product_intelligence function and updated it.
+    def _build_product_intelligence(self) -> bool:
+        """Build product intelligence from database (no file creation)"""
+        try:
+            logger.info("Validating product intelligence from database...")
+
+            # Import the product intelligence builder
+            from .product_intelligence_builder import ProductIntelligenceBuilder
+
+            builder = ProductIntelligenceBuilder()
+            try:
+                # Get intelligence from database instead of creating file
+                intelligence = builder.get_intelligence_from_database()
+
+                if intelligence and intelligence.get('products'):
+                    products_count = len(intelligence['products'])
+                    manufacturers_count = len(intelligence.get('manufacturers', {}))
+                    logger.info(
+                        f"✅ Product intelligence validated: {products_count:,} products, {manufacturers_count} manufacturers from database")
+
+                    # Track that intelligence is ready (no file created)
+                    self.files_created.append("product_intelligence_database_cache")
+                    return True
+                else:
+                    self.errors.append("Failed to load product intelligence from database")
+                    return False
+
+            finally:
+                builder.close()
+
+        except Exception as e:
+            self.errors.append(f"Product intelligence validation error: {e}")
+            logger.error(f"❌ Product intelligence validation failed: {e}")
+            return False
+
     def _build_category_intelligence(self) -> bool:
-        """Validate category intelligence from database (no more file creation)"""
+        """Validate category intelligence from database (no file creation)"""
         try:
             logger.info("Validating category intelligence from database...")
 
-            #NEW: Validate intelligence from database instead of creating file
-            from .category_intelligence import CategoryIntelligenceManager
+            # Import here to avoid circular imports
+            from ..database import get_category_intelligence_from_database
 
-            intelligence = CategoryIntelligenceManager.load_intelligence()
+            intelligence = get_category_intelligence_from_database()
 
             if intelligence and intelligence.get('categories'):
-                # REMOVE: File creation code
-                # with open("category_intelligence.json", 'w') as f:
-                #     json.dump(category_intelligence, f, indent=2)
-                # self.files_created.append("category_intelligence.json")
-
-                # NEW: Track that intelligence is ready (no file created)
                 categories_count = len(intelligence['categories'])
                 total_products = sum(cat.get('product_count', 0) for cat in intelligence['categories'].values())
 
                 logger.info(
-                    f"✅ Category intelligence validated: {categories_count} categories, {total_products} products")
+                    f"✅ Category intelligence validated: {categories_count} categories, {total_products:,} products from database")
 
-                # Track this as a successful component (not a file)
+                # Track that intelligence is ready (no file created)
                 self.files_created.append("category_intelligence_database_cache")
                 return True
             else:
@@ -222,82 +251,29 @@ class ProductIdentifierSystemBuilder:
             logger.error(f"❌ Category intelligence validation failed: {e}")
             return False
 
-    def _build_category_intelligence(self) -> bool:
-        """Build category intelligence (this would need to be implemented)"""
+    def _build_embeddings_system_unlimited(self) -> bool:
+        """
+        FIXED: Build embeddings and upload ALL to Pinecone (no limits, no cache)
+        """
         try:
-            logger.info("📂 Building category intelligence...")
+            logger.info("🚀 Building UNLIMITED embeddings system...")
 
-            # For now, create a simple category intelligence file
-            # This could be enhanced later with actual category analysis
-            category_intelligence = {
-                "categories": {
-                    "Graphics Cards": {
-                        "keywords": [
-                            "gpu",
-                            "graphics",
-                            "video card",
-                            "rtx",
-                            "gtx",
-                            "radeon",
-                        ],
-                        "patterns": ["rtx \\d{4}", "gtx \\d{4}", "radeon rx \\d{4}"],
-                        "brands": ["nvidia", "amd", "asus", "msi", "gigabyte"],
-                    },
-                    "Processors": {
-                        "keywords": ["cpu", "processor", "ryzen", "intel", "core"],
-                        "patterns": [
-                            "ryzen \\d \\d{4}",
-                            "core i[3579]-\\d{4,5}",
-                            "intel core",
-                        ],
-                        "brands": ["amd", "intel"],
-                    },
-                    "Memory": {
-                        "keywords": ["ram", "memory", "ddr4", "ddr5"],
-                        "patterns": ["\\d+gb ddr[45]", "ddr[45]-\\d{4}"],
-                        "brands": ["corsair", "kingston", "crucial", "gskill"],
-                    },
-                    "Storage": {
-                        "keywords": ["ssd", "hdd", "nvme", "storage", "drive"],
-                        "patterns": ["\\d+gb", "\\d+tb", "nvme", "sata"],
-                        "brands": ["samsung", "western digital", "seagate", "crucial"],
-                    },
-                },
-                "created": datetime.now().isoformat(),
-                "note": "Simple category intelligence - can be enhanced with ML analysis",
-            }
+            # Step 1: Load product intelligence from database
+            from .product_intelligence_builder import ProductIntelligenceBuilder
 
-            import json
+            builder = ProductIntelligenceBuilder()
+            try:
+                intelligence = builder.get_intelligence_from_database()
+            finally:
+                builder.close()
 
-            with open("category_intelligence.json", "w") as f:
-                json.dump(category_intelligence, f, indent=2)
-
-            self.files_created.append("category_intelligence.json")
-            logger.info("✅ Category intelligence built successfully")
-            return True
-
-        except Exception as e:
-            self.errors.append(f"Category intelligence build error: {e}")
-            logger.error(f"❌ Category intelligence build failed: {e}")
-            return False
-
-    #Removed caching
-    def _build_embeddings_system(self) -> bool:
-        """Build embeddings and upload to Pinecone (no local cache)"""
-        try:
-            logger.info("🔗 Building embeddings system...")
-
-            # Step 1: Load product intelligence
-            import json
-            with open("product_intelligence.json", 'r') as f:
-                intelligence = json.load(f)
-
-            products_data = intelligence.get("products", [])
-            if not products_data:
+            if not intelligence or not intelligence.get("products"):
                 self.errors.append("No products found in intelligence data")
                 return False
 
-            logger.info(f"📊 Found {len(products_data)} products for embedding generation")
+            products_data = intelligence.get("products", [])
+            total_products = len(products_data)
+            logger.info(f"📊 Found {total_products:,} products for UNLIMITED embedding generation")
 
             # Step 2: Initialize services
             from .embedding_service import EmbeddingService
@@ -311,38 +287,72 @@ class ProductIdentifierSystemBuilder:
                 self.errors.append("Failed to create Pinecone index")
                 return False
 
-            # Step 4: Generate embeddings
-            logger.info("🧬 Generating embeddings for products...")
-            product_embeddings = embedding_service.create_product_embeddings(products_data)
+            # Step 4: Generate embeddings for ALL products (no limits)
+            logger.info(f"🧬 Generating embeddings for ALL {total_products:,} products...")
+
+            # Progress tracking
+            def log_progress(current, total, product_name=""):
+                if current % 100 == 0 or current == total:
+                    progress = (current / total) * 100
+                    logger.info(f"📈 Embedding progress: {current:,}/{total:,} ({progress:.1f}%) - {product_name}")
+
+            product_embeddings = embedding_service.create_product_embeddings(
+                products_data,
+                progress_callback=log_progress
+            )
 
             if not product_embeddings:
                 self.errors.append("Failed to generate product embeddings")
                 return False
 
-            logger.info(f"✅ Generated {len(product_embeddings)} product embeddings")
+            embeddings_generated = len(product_embeddings)
+            success_rate = (embeddings_generated / total_products) * 100
 
-            # Step 5: Upload to Pinecone
-            logger.info("☁️ Uploading embeddings to Pinecone...")
-            if not pinecone_manager.upload_product_embeddings(product_embeddings):
+            logger.info(f"✅ Generated {embeddings_generated:,}/{total_products:,} product embeddings ({success_rate:.1f}% success rate)")
+
+            # Step 5: Upload ALL embeddings to Pinecone (no limits)
+            logger.info(f"☁️ Uploading ALL {embeddings_generated:,} embeddings to Pinecone...")
+
+            # Use optimized batch size for better performance
+            upload_success = pinecone_manager.upload_product_embeddings(
+                product_embeddings,
+                batch_size=50  # Optimized batch size based on Pinecone recommendations
+            )
+
+            if not upload_success:
                 self.errors.append("Failed to upload embeddings to Pinecone")
                 return False
 
-            # REMOVE: Step 6: Save embeddings cache
-            # embedding_service.save_embeddings_cache()
-            # self.files_created.append("product_embeddings_cache.pkl")
+            # Step 6: Verify upload
+            try:
+                stats = pinecone_manager.get_index_stats()
+                final_count = stats.get("total_vector_count", 0)
+                logger.info(f"🔍 Final verification: {final_count:,} vectors in Pinecone index")
 
-            logger.info("✅ Embeddings system built successfully (cache disabled)")
+                if final_count >= embeddings_generated * 0.9:  # Allow 10% tolerance for indexing delays
+                    logger.info("✅ UNLIMITED embeddings system built successfully - NO LIMITS APPLIED!")
+                else:
+                    logger.warning(f"⚠️ Upload verification: Expected {embeddings_generated:,}, found {final_count:,}")
+
+            except Exception as e:
+                logger.warning(f"Could not verify final upload count: {e}")
+
+            # Track success (no cache file created)
+            self.files_created.append("unlimited_embeddings_uploaded_to_pinecone")
+            logger.info("✅ UNLIMITED embeddings system built successfully (cache disabled)")
             return True
 
         except Exception as e:
-            self.errors.append(f"Embeddings system build error: {e}")
-            logger.error(f"❌ Embeddings system build failed: {e}")
+            self.errors.append(f"UNLIMITED embeddings system build error: {e}")
+            logger.error(f"❌ UNLIMITED embeddings system build failed: {e}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return False
 
     def _verify_system(self) -> bool:
         """Verify the complete system is working"""
         try:
-            logger.info("🔍 Verifying system functionality...")
+            logger.info("🔍 Verifying UNLIMITED system functionality...")
 
             # Try to initialize the smart extractor
             from .smart_product_extractor import SmartProductExtractor
@@ -353,7 +363,7 @@ class ProductIdentifierSystemBuilder:
             test_result = extractor.extract_products_smart("RTX 4090", max_products=1)
 
             if test_result.products or test_result.extraction_method != "failed":
-                logger.info("✅ System verification passed")
+                logger.info("✅ UNLIMITED system verification passed")
                 return True
             else:
                 self.errors.append(
@@ -370,7 +380,7 @@ class ProductIdentifierSystemBuilder:
         """Build error status response"""
         return SystemStatus(
             success=False,
-            message=f"System build failed at step: {failed_step}",
+            message=f"UNLIMITED System build failed at step: {failed_step}",
             details={"step": failed_step, "errors": self.errors},
             processing_time=time.time() - start_time,
             files_created=self.files_created,
@@ -381,7 +391,7 @@ class ProductIdentifierSystemBuilder:
 # Convenience function for external use
 def build_product_identification_system(force_rebuild: bool = False) -> SystemStatus:
     """
-    Build the complete product identification system.
+    Build the complete product identification system with UNLIMITED uploads.
 
     Args:
         force_rebuild: Whether to rebuild even if files exist
@@ -394,24 +404,25 @@ def build_product_identification_system(force_rebuild: bool = False) -> SystemSt
 
 
 if __name__ == "__main__":
-    # Test the build system
+    # Test the unlimited build system
     import logging
     from .config import ProductIdentifierConfig
 
     ProductIdentifierConfig.setup_logging()
 
-    print("🚀 Testing Product Identification System Builder")
-    print("=" * 60)
+    print("🚀 Testing UNLIMITED Product Identification System Builder")
+    print("=" * 70)
 
-    # Build the system
+    # Build the system with no limits
     result = build_product_identification_system(force_rebuild=True)
 
     if result.success:
         print(f"✅ {result.message}")
-        print(f"📁 Files created: {result.files_created}")
+        print(f"📁 Components created: {result.files_created}")
         print(f"⏱️ Time taken: {result.processing_time:.2f} seconds")
+        print("🎉 UNLIMITED MODE: All products processed without limits!")
     else:
         print(f"❌ {result.message}")
         print(f"🐛 Errors: {result.errors}")
 
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 70)

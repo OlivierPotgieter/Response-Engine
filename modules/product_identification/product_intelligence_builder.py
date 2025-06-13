@@ -1,5 +1,5 @@
 """
-Updated Product Intelligence Builder
+Updated Product Intelligence Builder - FIXED: Import paths for database connector
 Fixed to use Manufacturers table instead of Brands table
 """
 
@@ -10,7 +10,9 @@ from typing import Dict, List
 from datetime import datetime
 from collections import Counter, defaultdict
 from dotenv import load_dotenv
-from database_connector import DatabaseConnector, Product, Manufacturer
+
+# FIXED: Import from the correct module path
+from ..database.backend_db import BackendDatabase
 
 # Load environment variables
 load_dotenv()
@@ -23,7 +25,7 @@ class ProductIntelligenceBuilder:
 
     def __init__(self):
         """Initialize the intelligence builder"""
-        self.db = DatabaseConnector()
+        self.db = BackendDatabase()
         self.intelligence = {}
 
     def build_complete_intelligence(self) -> Dict:
@@ -41,11 +43,9 @@ class ProductIntelligenceBuilder:
 
         # Get all data from database with CORRECT manufacturer information
         all_products_raw = self.db.get_all_products(enabled_only=True)
-        all_manufacturers = (
-            self.db.get_all_manufacturers()
-        )  # Changed from get_all_brands
+        all_manufacturers = self.db.get_all_manufacturers()
         categories = self.db.get_categories()
-        self.db.get_manufacturer_names()  # Changed from get_brand_names
+        self.db.get_manufacturer_names()
 
         # Filter out problematic products
         all_products = self._filter_quality_products(all_products_raw)
@@ -64,14 +64,12 @@ class ProductIntelligenceBuilder:
                 "total_products_raw": len(all_products_raw),
                 "total_products_filtered": len(all_products),
                 "enabled_products": len(all_products),
-                "total_manufacturers": len(
-                    all_manufacturers
-                ),  # Changed from total_brands
+                "total_manufacturers": len(all_manufacturers),
                 "total_categories": len(categories),
             },
             "manufacturers": self._analyze_manufacturers(
                 all_manufacturers, all_products
-            ),  # Changed from brands
+            ),
             "categories": self._analyze_categories(categories, all_products),
             "products": self._build_product_index(all_products),
             "search_patterns": self._extract_search_patterns(all_products),
@@ -85,7 +83,7 @@ class ProductIntelligenceBuilder:
 
         return intelligence
 
-    def _filter_quality_products(self, products: List[Product]) -> List[Product]:
+    def _filter_quality_products(self, products) -> List:
         """Filter out low-quality products that might hurt our AI model"""
         filtered_products = []
 
@@ -94,14 +92,17 @@ class ProductIntelligenceBuilder:
             "n/a",
             "not specified",
             "",
-        }  # Changed from brands
+        }
         excluded_categories = {"default", "unknown", "uncategorized", "n/a", ""}
 
         for product in products:
             # Skip products with unknown/missing manufacturers
-            if (
-                product.manufacturer_name.lower().strip() in excluded_manufacturers
-            ):  # Changed from brand_name
+            if hasattr(product, 'manufacturer_name'):
+                manufacturer_name = product.manufacturer_name
+            else:
+                manufacturer_name = getattr(product, 'brand_name', '')
+
+            if manufacturer_name.lower().strip() in excluded_manufacturers:
                 continue
 
             # Skip products with default/unknown categories
@@ -121,9 +122,7 @@ class ProductIntelligenceBuilder:
 
         return filtered_products
 
-    def _analyze_manufacturers(
-        self, manufacturers: List[Manufacturer], products: List[Product]
-    ) -> Dict:
+    def _analyze_manufacturers(self, manufacturers, products) -> Dict:
         """Analyze manufacturer information and create searchable variations"""
         logger.info("🏭 Analyzing manufacturers...")
 
@@ -132,13 +131,17 @@ class ProductIntelligenceBuilder:
         # Group products by manufacturer
         products_by_manufacturer = defaultdict(list)
         for product in products:
-            products_by_manufacturer[product.manufacturer_name].append(product)
+            # Handle both manufacturer_name and brand_name attributes
+            manufacturer_name = getattr(product, 'manufacturer_name', None) or getattr(product, 'brand_name', '')
+            if manufacturer_name:
+                products_by_manufacturer[manufacturer_name].append(product)
 
         for manufacturer in manufacturers:
-            manufacturer_products = products_by_manufacturer.get(manufacturer.name, [])
+            manufacturer_name = manufacturer.name
+            manufacturer_products = products_by_manufacturer.get(manufacturer_name, [])
 
             # Create variations for better matching
-            variations = self._create_manufacturer_variations(manufacturer.name)
+            variations = self._create_manufacturer_variations(manufacturer_name)
 
             # Get categories this manufacturer appears in
             manufacturer_categories = list(
@@ -151,9 +154,9 @@ class ProductIntelligenceBuilder:
             ]
             avg_price = sum(prices) / len(prices) if prices else 0
 
-            manufacturer_analysis[manufacturer.name] = {
+            manufacturer_analysis[manufacturer_name] = {
                 "id": manufacturer.id,
-                "name": manufacturer.name,
+                "name": manufacturer_name,
                 "variations": variations,
                 "product_count": len(manufacturer_products),
                 "categories": manufacturer_categories,
@@ -237,9 +240,7 @@ class ProductIntelligenceBuilder:
 
         return list(set(variations))
 
-    def _analyze_categories(
-        self, categories: List[str], products: List[Product]
-    ) -> Dict:
+    def _analyze_categories(self, categories: List[str], products) -> Dict:
         """Analyze categories and extract patterns with manufacturer data"""
         logger.info("📂 Analyzing categories...")
 
@@ -252,10 +253,12 @@ class ProductIntelligenceBuilder:
             if not category_products:
                 continue
 
-            # Analyze manufacturers in this category (FIXED from brands)
-            manufacturer_distribution = Counter(
-                p.manufacturer_name for p in category_products
-            )
+            # Analyze manufacturers in this category
+            manufacturer_distribution = Counter()
+            for p in category_products:
+                manufacturer_name = getattr(p, 'manufacturer_name', None) or getattr(p, 'brand_name', '')
+                if manufacturer_name:
+                    manufacturer_distribution[manufacturer_name] += 1
 
             # Analyze price ranges
             prices = [p.current_price for p in category_products if p.current_price > 0]
@@ -275,7 +278,7 @@ class ProductIntelligenceBuilder:
                 "product_count": len(category_products),
                 "manufacturer_distribution": dict(
                     manufacturer_distribution.most_common(10)
-                ),  # Changed from brand_distribution
+                ),
                 "price_statistics": {
                     "min": min(prices) if prices else 0,
                     "max": max(prices) if prices else 0,
@@ -288,7 +291,7 @@ class ProductIntelligenceBuilder:
                     {
                         "id": p.product_id,
                         "name": p.name,
-                        "manufacturer": p.manufacturer_name,  # Changed from brand
+                        "manufacturer": getattr(p, 'manufacturer_name', '') or getattr(p, 'brand_name', ''),
                         "popularity": p.popularity,
                     }
                     for p in sorted(
@@ -300,18 +303,21 @@ class ProductIntelligenceBuilder:
         logger.info(f"✅ Analyzed {len(category_analysis)} categories")
         return category_analysis
 
-    def _build_product_index(self, products: List[Product]) -> List[Dict]:
+    def _build_product_index(self, products) -> List[Dict]:
         """Build searchable product index with manufacturer data"""
         logger.info("📖 Building product search index...")
 
         search_index = []
 
         for product in products:
+            # Get manufacturer name (handle both attribute names)
+            manufacturer_name = getattr(product, 'manufacturer_name', '') or getattr(product, 'brand_name', '')
+
             # Create comprehensive searchable text
             searchable_terms = [
                 product.name,
                 product.sku,
-                product.manufacturer_name,  # Changed from brand_name
+                manufacturer_name,
                 product.category,
                 product.search_text,
                 product.short_description,
@@ -320,8 +326,8 @@ class ProductIntelligenceBuilder:
             # Filter and clean terms
             clean_terms = []
             for term in searchable_terms:
-                if term and term.strip():
-                    clean_terms.append(term.strip())
+                if term and str(term).strip():
+                    clean_terms.append(str(term).strip())
 
             searchable_text = " ".join(clean_terms).lower()
 
@@ -341,8 +347,8 @@ class ProductIntelligenceBuilder:
                 "product_id": product.product_id,
                 "name": product.name,
                 "sku": product.sku,
-                "manufacturer": product.manufacturer_name,  # Changed from brand
-                "manufacturer_id": product.manufacturer_id,  # Changed from brand_id
+                "manufacturer": manufacturer_name,
+                "manufacturer_id": getattr(product, 'manufacturer_id', 0),
                 "category": product.category,
                 "price": product.current_price,
                 "price_range": price_range,
@@ -358,7 +364,7 @@ class ProductIntelligenceBuilder:
         logger.info(f"✅ Built search index with {len(search_index)} products")
         return search_index
 
-    def _extract_search_patterns(self, products: List[Product]) -> Dict:
+    def _extract_search_patterns(self, products) -> Dict:
         """Extract search patterns across all products"""
         logger.info("🔍 Extracting search patterns...")
 
@@ -559,7 +565,7 @@ class ProductIntelligenceBuilder:
 
         return [term for term, count in keywords.most_common(50)]
 
-    def _calculate_statistics(self, products: List[Product]) -> Dict:
+    def _calculate_statistics(self, products) -> Dict:
         """Calculate various statistics about the product catalog"""
 
         # Price statistics
@@ -568,10 +574,12 @@ class ProductIntelligenceBuilder:
         # Category distribution
         category_dist = Counter(p.category for p in products if p.category)
 
-        # Manufacturer distribution (FIXED from brand)
-        manufacturer_dist = Counter(
-            p.manufacturer_name for p in products if p.manufacturer_name
-        )
+        # Manufacturer distribution
+        manufacturer_dist = Counter()
+        for p in products:
+            manufacturer_name = getattr(p, 'manufacturer_name', '') or getattr(p, 'brand_name', '')
+            if manufacturer_name:
+                manufacturer_dist[manufacturer_name] += 1
 
         # Stock statistics
         in_stock_count = sum(1 for p in products if p.is_in_stock)
@@ -588,22 +596,13 @@ class ProductIntelligenceBuilder:
                 "median_price": sorted(prices)[len(prices) // 2] if prices else 0,
             },
             "category_distribution": dict(category_dist.most_common(20)),
-            "manufacturer_distribution": dict(
-                manufacturer_dist.most_common(20)
-            ),  # Changed from brand_distribution
+            "manufacturer_distribution": dict(manufacturer_dist.most_common(20)),
             "stock_ratio": in_stock_count / len(products) if products else 0,
             "eol_ratio": eol_count / len(products) if products else 0,
         }
 
         return stats
-    #Removed the following two functions :
-    #save_intelligence
-    #load_intelligence
 
-    #Will add the following functions :
-    #get_intelligence_from_database
-    #cache_intelligence_in_memory
-    #invalidate_cache
     def get_intelligence_from_database(self) -> Dict:
         """
         Get product intelligence directly from database (replaces file loading)
@@ -679,9 +678,7 @@ class ProductIntelligenceBuilder:
             "created": metadata.get("created"),
             "total_products_raw": metadata.get("total_products_raw", 0),
             "total_products_filtered": metadata.get("total_products_filtered", 0),
-            "total_manufacturers": metadata.get(
-                "total_manufacturers", 0
-            ),  # Changed from total_brands
+            "total_manufacturers": metadata.get("total_manufacturers", 0),
             "total_categories": metadata.get("total_categories", 0),
             "filter_ratio": round(
                 (
@@ -701,9 +698,7 @@ class ProductIntelligenceBuilder:
             "top_categories": list(stats.get("category_distribution", {}).keys())[:5],
             "top_manufacturers": list(
                 stats.get("manufacturer_distribution", {}).keys()
-            )[
-                :5
-            ],  # Changed from top_brands
+            )[:5],
             "stock_ratio": round(stats.get("stock_ratio", 0) * 100, 1),
         }
 
@@ -713,8 +708,6 @@ class ProductIntelligenceBuilder:
 
 
 # Convenience functions
-
-#Removed old build_product intelligence, but I just updated the def
 def build_product_intelligence(cache_in_memory: bool = True) -> Dict:
     """
     Build product intelligence from database (replaces file-based approach)
@@ -739,9 +732,6 @@ def build_product_intelligence(cache_in_memory: bool = True) -> Dict:
         builder.close()
 
 
-#Removed old Convenience FUnction get_intelligence_summary
-
-#Added new get_intelligence_summary and invalidate_product_intelligence_cache
 def get_intelligence_summary() -> Dict:
     """Get intelligence summary from live database (replaces file loading)"""
     builder = ProductIntelligenceBuilder()
@@ -814,7 +804,7 @@ if __name__ == "__main__":
 
     try:
         print("🚀 Building Product Intelligence with Manufacturer Data...")
-        intelligence = build_product_intelligence(save_to_file=True)
+        intelligence = build_product_intelligence()
 
         print("\n✅ Intelligence Built Successfully!")
 
@@ -824,9 +814,7 @@ if __name__ == "__main__":
         print(f"  Products (Raw): {summary.get('total_products_raw', 0):,}")
         print(f"  Products (Filtered): {summary.get('total_products_filtered', 0):,}")
         print(f"  Filter Efficiency: {summary.get('filter_ratio', 0)}% kept")
-        print(
-            f"  Manufacturers: {summary.get('total_manufacturers', 0):,}"
-        )  # Changed from Brands
+        print(f"  Manufacturers: {summary.get('total_manufacturers', 0):,}")
         print(f"  Categories: {summary.get('total_categories', 0):,}")
         print(
             f"  Price Range: ${summary.get('price_range', {}).get('min', 0):,.2f} - ${summary.get('price_range', {}).get('max', 0):,.2f}"
@@ -840,7 +828,7 @@ if __name__ == "__main__":
         for i, category in enumerate(summary.get("top_categories", []), 1):
             print(f"    {i}. {category}")
 
-        print("\n🏭 Top Manufacturers:")  # Changed from Brands
+        print("\n🏭 Top Manufacturers:")
         for i, manufacturer in enumerate(summary.get("top_manufacturers", []), 1):
             print(f"    {i}. {manufacturer}")
 
